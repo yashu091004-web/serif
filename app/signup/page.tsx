@@ -21,7 +21,6 @@ export default function SignupPage() {
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
-  const supabase = createClient();
 
   async function handleSignup(e: React.FormEvent) {
     e.preventDefault();
@@ -29,6 +28,7 @@ export default function SignupPage() {
     setError(null);
     setMessage(null);
 
+    const supabase = createClient();
     const { error } = await supabase.auth.signUp({
       email,
       password,
