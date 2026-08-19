@@ -10,10 +10,10 @@ export function Navbar() {
   const [user, setUser] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const router = useRouter();
-  const supabase = createClient();
 
   useEffect(() => {
     async function getUser() {
+      const supabase = createClient();
       const { data: { user } } = await supabase.auth.getUser();
       setUser(user);
       setLoading(false);
@@ -22,6 +22,7 @@ export function Navbar() {
   }, []);
 
   async function handleLogout() {
+    const supabase = createClient();
     await supabase.auth.signOut();
     router.push("/");
     router.refresh();
