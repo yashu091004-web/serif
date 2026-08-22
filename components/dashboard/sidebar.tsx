@@ -6,7 +6,7 @@ import { Home, FileText, Settings, LogOut } from "lucide-react";
 import { Logo } from "@/components/logo";
 import { cn } from "@/lib/utils";
 import { logout } from "@/app/actions/auth";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import {
   Tooltip,
@@ -26,12 +26,14 @@ export function SidebarNav({
   name,
   email,
   initials,
+  avatarUrl,
   onNavigate,
 }: {
   collapsed: boolean;
   name: string;
   email: string;
   initials: string;
+  avatarUrl: string | null;
   onNavigate?: () => void;
 }) {
   const pathname = usePathname();
@@ -108,6 +110,7 @@ export function SidebarNav({
           )}
         >
           <Avatar className="size-8 shrink-0">
+            {avatarUrl && <AvatarImage src={avatarUrl} alt={name} />}
             <AvatarFallback className="bg-primary/10 text-xs font-semibold text-primary">
               {initials}
             </AvatarFallback>

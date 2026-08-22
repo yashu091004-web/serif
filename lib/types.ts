@@ -1,28 +1,18 @@
 export type PostStatus = "draft" | "published";
 
-export interface Author {
-  id: string;
-  name: string;
-  initials: string;
-  role: string;
-}
-
 export interface BlogPost {
   id: string;
-  slug: string;
+  userId: string;
   title: string;
-  subtitle: string;
-  content: string;
-  category: string;
-  cover: string;
-  seoTitle: string;
-  seoDescription: string;
-  author: Author;
+  summary: string;
+  body: string;
+  imageUrl: string | null;
   status: PostStatus;
-  publishedAt: string;
-  updatedAt: string;
+  slug: string;
   readTime: number;
-  views: number;
+  publishedAt: string | null;
+  createdAt: string;
+  updatedAt: string;
 }
 
 export type TaskStatus = "todo" | "in-progress" | "done";
@@ -32,12 +22,6 @@ export interface DashboardTask {
   title: string;
   status: TaskStatus;
   due: string;
-}
-
-export interface DashboardStats {
-  totalPosts: number;
-  drafts: number;
-  monthlyViews: string;
 }
 
 export interface UserProfile {

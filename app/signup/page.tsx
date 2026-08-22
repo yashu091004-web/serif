@@ -35,13 +35,14 @@ export default function SignupPage() {
 
     setLoading(true);
     const supabase = createClient();
-    const { error } = await supabase.auth.signUp({
+    const { data, error } = await supabase.auth.signUp({
       email,
       password,
       options: {
         data: {
           full_name: name.trim() || null,
         },
+        emailRedirectTo: `${location.origin}/auth/callback?next=/dashboard`,
       },
     });
 
@@ -50,6 +51,18 @@ export default function SignupPage() {
       setLoading(false);
       return;
     }
+
+    try {
+      void fetch("/api/sync-signup", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          email,
+          firstName: name.trim() || null,
+          userId: data.user?.id ?? null,
+        }),
+      });
+    } catch {}
 
     setMessage("Check your email for a confirmation link.");
     setLoading(false);

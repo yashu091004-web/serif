@@ -41,8 +41,10 @@ export function AuthShell({
           className="absolute inset-0 bg-[linear-gradient(to_right,var(--border)_1px,transparent_1px),linear-gradient(to_bottom,var(--border)_1px,transparent_1px)] bg-[size:3rem_3rem] opacity-30 [mask-image:radial-gradient(ellipse_70%_60%_at_30%_30%,black,transparent)]"
         />
         <div className="relative flex h-full flex-col justify-between p-12">
-          <Logo />
-          <div className="max-w-md">
+          <div className="animate-in fade-in duration-700 ease-out motion-reduce:animate-none">
+            <Logo />
+          </div>
+          <div className="animate-in fade-in slide-in-from-left-4 max-w-md duration-700 ease-out [animation-delay:150ms] motion-reduce:animate-none">
             <h2 className="font-display text-4xl font-semibold tracking-tight text-balance">
               The Intelligent Future of Blogging
             </h2>
@@ -73,7 +75,7 @@ export function AuthShell({
       </div>
 
       <div className="flex flex-1 flex-col items-center justify-center px-4 py-12 sm:px-8">
-        <div className="w-full max-w-sm">
+        <div className="animate-in fade-in slide-in-from-bottom-4 w-full max-w-sm duration-700 ease-out motion-reduce:animate-none">
           <div className="lg:hidden">
             <Logo />
           </div>

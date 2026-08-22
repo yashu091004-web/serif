@@ -22,16 +22,16 @@ export function Logo({
     >
       <span
         className={cn(
-          "flex size-7 items-center justify-center rounded-md bg-primary font-display text-sm font-semibold text-primary-foreground",
+          "flex items-center justify-center",
           markClassName
         )}
       >
-        S
+        <span className="block size-2 rounded-full bg-gold" />
       </span>
       {!compact && (
         <span
           className={cn(
-            "font-display text-lg font-semibold tracking-tight",
+            "font-display text-lg font-bold tracking-tight",
             textClassName
           )}
         >

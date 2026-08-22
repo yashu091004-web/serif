@@ -1,47 +1,95 @@
 import Link from "next/link";
+import { createClient } from "@supabase/supabase-js";
+import { unstable_cache } from "next/cache";
+import { Check } from "lucide-react";
+import { listPublishedPosts } from "@/lib/posts";
+import { getAuthorProfiles } from "@/lib/profiles";
+import type { Db } from "@/lib/posts";
+import { Reveal } from "@/components/reveal";
+import { PhoneMockup } from "@/components/marketing/phone-mockup";
 import {
-  Sparkles,
-  Wand2,
-  Rocket,
-  FolderKanban,
-  Check,
-  ArrowRight,
-  TrendingUp,
-  FileText,
-  PenLine,
-  Eye,
-  Clock,
-  Settings,
-} from "lucide-react";
-import { Badge } from "@/components/ui/badge";
-import { buttonVariants } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+  BookArchive,
+  type ArchivePost,
+} from "@/components/marketing/book-archive";
+
+const GRADIENTS = [
+  "linear-gradient(135deg,#c9a24b,#7a5a2f)",
+  "linear-gradient(135deg,#3a3a3a,#0a0a0a)",
+  "linear-gradient(135deg,#6b5a8a,#33264f)",
+  "linear-gradient(135deg,#8a6b2f,#4a3a1a)",
+  "linear-gradient(135deg,#2f6b5e,#173a32)",
+  "linear-gradient(135deg,#8a4a5c,#4f2633)",
+];
+
+const MAX_ARCHIVE_POSTS = 6;
+
+const FALLBACK_POSTS: ArchivePost[] = [
+  {
+    slug: null,
+    title: "Notes on slow mornings",
+    author: "Aanya K.",
+    dateLabel: "Aug 12",
+    readLabel: "4 min",
+    gradient: GRADIENTS[0],
+  },
+  {
+    slug: null,
+    title: "Why first drafts don't need to be good",
+    author: "Rohan M.",
+    dateLabel: "Aug 9",
+    readLabel: "6 min",
+    gradient: GRADIENTS[1],
+  },
+  {
+    slug: null,
+    title: "The case for writing in public",
+    author: "Elena V.",
+    dateLabel: "Aug 3",
+    readLabel: "5 min",
+    gradient: GRADIENTS[2],
+  },
+  {
+    slug: null,
+    title: "Tone is a setting, not a talent",
+    author: "Marcus T.",
+    dateLabel: "Jul 28",
+    readLabel: "3 min",
+    gradient: GRADIENTS[3],
+  },
+  {
+    slug: null,
+    title: "What AI drafts get wrong (and right)",
+    author: "Priya S.",
+    dateLabel: "Jul 21",
+    readLabel: "7 min",
+    gradient: GRADIENTS[4],
+  },
+  {
+    slug: null,
+    title: "Publishing is a habit, not an event",
+    author: "Sam O.",
+    dateLabel: "Jul 15",
+    readLabel: "4 min",
+    gradient: GRADIENTS[5],
+  },
+];
 
 const features = [
   {
-    icon: Sparkles,
     title: "AI Blog Generation",
-    description:
-      "Generate high-quality blog drafts with AI. Turn a topic or outline into a structured draft in seconds.",
+    copy: "Give it a topic and a tone. Get a full draft back, ready to edit.",
   },
   {
-    icon: Wand2,
     title: "Content Optimization",
-    description:
-      "Improve readability, structure, and SEO with instant suggestions that keep your voice intact.",
+    copy: "Tighten pacing and structure without losing your voice.",
   },
   {
-    icon: Rocket,
     title: "Easy Publishing",
-    description:
-      "Manage drafts and published posts from one dashboard. Publish with a single click.",
+    copy: "One click from draft to a live, readable post.",
   },
   {
-    icon: FolderKanban,
     title: "Content Management",
-    description:
-      "Organize and manage all blog posts in one place with search, filters, and effortless sorting.",
+    copy: "Every draft and published post, sorted and searchable.",
   },
 ];
 
@@ -50,12 +98,12 @@ const plans = [
     name: "Free",
     price: "$0",
     period: "/month",
-    description: "For getting started with AI-assisted writing.",
+    description: "Everything you need to write and publish on your own.",
     features: [
-      "5 AI-generated drafts / month",
-      "Basic content editor",
-      "3 published posts",
-      "Email support",
+      "Unlimited manual posts",
+      "Rich-text editor & draft workflow",
+      "Publish to your public blog",
+      "Post management dashboard",
     ],
     cta: "Start for free",
     href: "/signup",
@@ -63,339 +111,266 @@ const plans = [
   },
   {
     name: "Pro",
-    price: "$12",
+    price: "$20",
     period: "/month",
-    description: "For serious writers who publish regularly.",
+    description: "Unlocks all app features, including creating blogs with AI.",
     features: [
-      "Unlimited AI drafts",
-      "Content optimization & SEO",
-      "Unlimited published posts",
-      "Analytics dashboard",
-      "Priority support",
+      "Everything in Free",
+      "AI blog generation — topic to editable draft in seconds",
+      "All app features unlocked",
     ],
-    cta: "Start 14-day trial",
-    href: "/signup",
+    cta: "Upgrade to Pro",
+    href: "/pricing",
     highlight: true,
-  },
-  {
-    name: "Enterprise",
-    price: "Custom",
-    period: "",
-    description: "For teams and publications at scale.",
-    features: [
-      "Everything in Pro",
-      "Team workspaces",
-      "Custom AI models",
-      "SSO & advanced security",
-      "Dedicated success manager",
-    ],
-    cta: "Contact sales",
-    href: "/signup",
-    highlight: false,
   },
 ];
 
+function formatDate(iso: string): string {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return "";
+  return new Intl.DateTimeFormat("en-US", {
+    month: "short",
+    day: "numeric",
+  }).format(d);
+}
+
+/**
+ * Public, cookie-less fetch so the result can live in Next's data cache
+ * (cookies are not allowed inside unstable_cache scopes). Published posts
+ * are world-readable, so the anon key is sufficient.
+ */
+const getArchivePosts = unstable_cache(
+  async (): Promise<ArchivePost[]> => {
+    try {
+      const supabase = createClient(
+        process.env.NEXT_PUBLIC_SUPABASE_URL!,
+        process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!
+      ) as unknown as Db;
+      const posts = await listPublishedPosts(supabase);
+      if (posts.length === 0) return [];
+      const authors = await getAuthorProfiles(
+        supabase,
+        posts.map((p) => p.userId)
+      );
+      return posts.slice(0, MAX_ARCHIVE_POSTS).map((post, i) => ({
+        slug: post.slug || null,
+        title: post.title,
+        author:
+          authors.get(post.userId)?.fullName?.trim() || "Serif Writer",
+        dateLabel: post.publishedAt ? formatDate(post.publishedAt) : "",
+        readLabel: `${post.readTime || 4} min`,
+        gradient: GRADIENTS[i % GRADIENTS.length],
+      }));
+    } catch {
+      return [];
+    }
+  },
+  ["landing-archive-posts"],
+  { revalidate: 300, tags: ["posts"] }
+);
+
+export const revalidate = 300;
+
 export default function LandingPage() {
+  return <LandingContent />;
+}
+
+async function LandingContent() {
+  const fetched = await getArchivePosts();
+  const archivePosts =
+    fetched.length > 0
+      ? fetched.slice(0, MAX_ARCHIVE_POSTS)
+      : FALLBACK_POSTS;
+  const phonePosts = archivePosts.slice(0, 3).map((post) => ({
+    title: post.title,
+    meta: `${post.author} · ${post.readLabel} read`,
+    gradient: post.gradient,
+  }));
+
   return (
     <div className="flex flex-col">
-      <main>
-        <section className="relative overflow-hidden">
-          <div
-            aria-hidden
-            className="pointer-events-none absolute inset-0 -z-10 overflow-hidden"
-          >
-            <div className="absolute inset-0 bg-gradient-to-b from-primary/10 via-transparent to-background" />
-            <div className="absolute -top-40 left-1/2 h-[34rem] w-[34rem] -translate-x-1/2 rounded-full bg-primary/10 blur-3xl" />
-            <div className="absolute top-32 -left-40 h-96 w-96 rounded-full bg-fuchsia-500/10 blur-3xl" />
-            <div className="absolute top-48 -right-40 h-96 w-96 rounded-full bg-sky-500/10 blur-3xl" />
-            <div className="absolute inset-0 bg-[linear-gradient(to_right,var(--border)_1px,transparent_1px),linear-gradient(to_bottom,var(--border)_1px,transparent_1px)] bg-[size:4rem_4rem] opacity-40 [mask-image:radial-gradient(ellipse_65%_55%_at_50%_0%,black,transparent)]" />
-          </div>
+      <div aria-hidden className="grain pointer-events-none fixed inset-0 z-30 opacity-[0.035]" />
 
-          <div className="mx-auto max-w-6xl px-4 pt-20 pb-16 text-center sm:px-6 sm:pt-28 sm:pb-24">
-            <Badge
-              variant="outline"
-              className="gap-1.5 border-primary/20 bg-primary/5 px-3 py-1 text-primary"
-            >
-              <Sparkles className="size-3" />
+      {/* ---- Ink half ---- */}
+      <section className="relative bg-ink text-paper">
+        <div className="mx-auto grid min-h-svh w-full max-w-6xl items-center gap-12 px-6 pt-36 pb-20 sm:pt-40 lg:grid-cols-[1.1fr_0.9fr] lg:gap-8">
+          <div>
+            <span className="inline-flex items-center gap-2 rounded-full border border-gold/25 bg-gold/[0.06] py-1.5 pr-3.5 pl-2.5 font-mono text-[11px] tracking-[0.14em] text-gold uppercase">
+              <span className="animate-blink block size-1.5 rounded-full bg-gold" />
               AI-powered blogging platform
-            </Badge>
-            <h1 className="mx-auto mt-6 max-w-3xl font-display text-5xl font-semibold tracking-tight text-balance sm:text-7xl">
-              The Intelligent Future of Blogging
+            </span>
+            <h1 className="font-display mt-7 text-5xl leading-[0.98] font-bold tracking-tighter sm:text-7xl">
+              Where writers
+              <br />
+              <span className="font-medium text-paper/45">get</span> read.
             </h1>
-            <p className="mx-auto mt-6 max-w-xl text-base leading-7 text-muted-foreground sm:text-lg">
-              Harness the power of AI to create, optimize, and publish
-              compelling content in seconds.
+            <p className="mt-6 max-w-md text-base leading-relaxed text-paper/60">
+              Serif drafts, refines, and publishes — so the words that make it
+              out are the ones worth reading.
             </p>
-            <div className="mt-9 flex flex-col items-center justify-center gap-3 sm:flex-row">
+            <div className="mt-9 flex flex-wrap gap-3.5">
               <Link
                 href="/signup"
-                className={buttonVariants({ size: "lg", className: "gap-1.5" })}
+                className="rounded-full bg-paper px-7 py-3.5 text-sm font-semibold text-ink transition-all hover:-translate-y-0.5 hover:shadow-[0_10px_30px_rgba(251,250,247,0.15)] motion-reduce:transition-none motion-reduce:hover:translate-y-0"
               >
-                Start Writing
-                <ArrowRight className="size-4" />
+                Start writing
               </Link>
               <Link
                 href="/login"
-                className={buttonVariants({ size: "lg", variant: "outline" })}
+                className="rounded-full border border-white/15 px-7 py-3.5 text-sm font-semibold transition-colors hover:border-paper/50"
               >
-                Log In
+                Log in
               </Link>
             </div>
           </div>
+          <PhoneMockup posts={phonePosts} />
+        </div>
+      </section>
 
-          <div className="mx-auto max-w-6xl px-4 pb-20 sm:px-6 sm:pb-24">
-            <Card className="overflow-hidden ring-1 ring-border/60 shadow-xl">
-              <div className="flex items-center gap-1.5 border-b border-border/70 bg-muted/40 px-4 py-2.5">
-                <span className="size-2.5 rounded-full bg-border" />
-                <span className="size-2.5 rounded-full bg-border" />
-                <span className="size-2.5 rounded-full bg-border" />
-                <span className="ml-3 text-xs font-medium text-muted-foreground">
-                  serif.app / dashboard
-                </span>
-              </div>
-              <div className="grid gap-4 p-4 sm:p-6 lg:grid-cols-[1fr_2fr]">
-                <div className="hidden flex-col gap-1 rounded-lg border border-border/70 bg-muted/20 p-3 lg:flex">
-                  <div className="mb-2 flex items-center gap-2 px-1.5">
-                    <span className="flex size-5 items-center justify-center rounded bg-primary font-display text-[0.625rem] font-semibold text-primary-foreground">
-                      S
-                    </span>
-                    <span className="font-display text-sm font-semibold tracking-tight">
-                      Serif
-                    </span>
-                  </div>
-                  <div className="flex items-center gap-2 rounded-md bg-accent px-2.5 py-1.5 text-xs font-medium">
-                    <FileText className="size-3.5" />
-                    Home
-                  </div>
-                  <div className="flex items-center gap-2 rounded-md px-2.5 py-1.5 text-xs font-medium text-muted-foreground">
-                    <PenLine className="size-3.5" />
-                    Blogs
-                  </div>
-                  <div className="flex items-center gap-2 rounded-md px-2.5 py-1.5 text-xs font-medium text-muted-foreground">
-                    <Settings className="size-3.5" />
-                    Settings
-                  </div>
-                  <div className="mt-auto flex items-center gap-2 rounded-md px-2.5 py-1.5 text-xs font-medium text-muted-foreground">
-                    <Avatar className="size-5">
-                      <AvatarFallback className="bg-primary/10 text-[0.625rem] font-semibold text-primary">
-                        YO
-                      </AvatarFallback>
-                    </Avatar>
-                    You
-                  </div>
-                </div>
-                <div className="space-y-4">
-                  <div className="grid gap-3 sm:grid-cols-3">
-                    {[
-                      { label: "Total Posts", value: "18", icon: FileText },
-                      { label: "Drafts", value: "5", icon: PenLine },
-                      { label: "Monthly Views", value: "12.4k", icon: Eye },
-                    ].map((stat) => (
-                      <div
-                        key={stat.label}
-                        className="rounded-lg border border-border/70 bg-background p-3"
-                      >
-                        <div className="flex items-center justify-between">
-                          <span className="text-[0.6875rem] font-medium text-muted-foreground">
-                            {stat.label}
-                          </span>
-                          <stat.icon className="size-3.5 text-primary/60" />
-                        </div>
-                        <p className="mt-1 font-display text-2xl font-semibold tracking-tight">
-                          {stat.value}
-                        </p>
-                      </div>
-                    ))}
-                  </div>
-                  <div className="rounded-lg border border-border/70 bg-background p-3">
-                    <p className="text-[0.6875rem] font-medium text-muted-foreground">
-                      Recent posts
-                    </p>
-                    <div className="mt-2 space-y-2">
-                      {[
-                        {
-                          title: "Getting Started with Serif",
-                          status: "Published",
-                          views: "1.2k",
-                          time: "Aug 15",
-                        },
-                        {
-                          title: "Draft Better Ideas, Faster",
-                          status: "Draft",
-                          views: "—",
-                          time: "Aug 16",
-                        },
-                      ].map((row) => (
-                        <div
-                          key={row.title}
-                          className="flex items-center justify-between gap-3 rounded-md border border-border/60 px-3 py-2"
-                        >
-                          <div className="min-w-0">
-                            <p className="truncate text-xs font-medium">
-                              {row.title}
-                            </p>
-                            <p className="mt-0.5 flex items-center gap-1.5 text-[0.6875rem] text-muted-foreground">
-                              <Clock className="size-3" />
-                              {row.time}
-                            </p>
-                          </div>
-                          <div className="flex shrink-0 items-center gap-2">
-                            <Badge
-                              variant={
-                                row.status === "Published"
-                                  ? "secondary"
-                                  : "outline"
-                              }
-                              className="text-[0.625rem]"
-                            >
-                              {row.status}
-                            </Badge>
-                            <span className="flex items-center gap-1 text-[0.6875rem] text-muted-foreground">
-                              <Eye className="size-3" />
-                              {row.views}
-                            </span>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </Card>
-          </div>
-        </section>
+      <BookArchive posts={archivePosts} />
 
-        <section
-          id="features"
-          className="scroll-mt-20 border-y border-border/70 bg-muted/30 px-4 py-20 sm:px-6 sm:py-24"
-        >
-          <div className="mx-auto max-w-6xl">
-            <div className="max-w-2xl">
-              <h2 className="font-display text-3xl font-semibold tracking-tight sm:text-4xl">
-                Everything you need to write and publish
-              </h2>
-              <p className="mt-3 text-base leading-7 text-muted-foreground">
-                A focused set of tools that move you from idea to published post
-                — without the complexity of a full CMS.
-              </p>
-            </div>
-            <div className="mt-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-              {features.map((feature) => (
-                <Card
-                  key={feature.title}
-                  className="group p-5 transition-colors hover:border-primary/30"
-                >
-                  <div className="flex size-10 items-center justify-center rounded-lg border border-primary/20 bg-primary/5 text-primary transition-colors group-hover:bg-primary/10">
-                    <feature.icon className="size-5" />
-                  </div>
-                  <h3 className="mt-4 font-display text-lg font-semibold tracking-tight">
+      {/* ---- Paper half ---- */}
+      <div className="relative bg-paper text-ink">
+        {/* Features */}
+        <section id="features" className="scroll-mt-24 px-6 pt-24 pb-28 sm:pt-32">
+          <Reveal className="mx-auto max-w-xl text-center">
+            <p className="font-mono text-[11px] tracking-[0.2em] text-gold-deep uppercase">
+              What&apos;s inside
+            </p>
+            <h2 className="font-display mt-4 text-3xl font-bold tracking-tighter sm:text-5xl">
+              Four tools, one page.
+            </h2>
+          </Reveal>
+          <div className="mx-auto mt-14 grid max-w-6xl gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            {features.map((feature, i) => (
+              <Reveal key={feature.title} delay={i * 90}>
+                <div className="page-curl group relative h-full overflow-hidden rounded-2xl bg-ink p-7 pb-11 text-paper transition-shadow duration-300 hover:shadow-[0_20px_50px_rgba(10,10,10,0.35)] motion-reduce:transition-none">
+                  <div className="mb-6 size-9 rounded-[10px] bg-gradient-to-br from-gold to-[#7a5a2f]" />
+                  <h3 className="font-display text-base font-bold tracking-tight">
                     {feature.title}
                   </h3>
-                  <p className="mt-1.5 text-sm leading-6 text-muted-foreground">
-                    {feature.description}
+                  <p className="mt-2 text-[13px] leading-relaxed text-paper/55">
+                    {feature.copy}
                   </p>
-                </Card>
-              ))}
-            </div>
+                </div>
+              </Reveal>
+            ))}
           </div>
         </section>
 
-        <section id="pricing" className="scroll-mt-20 px-4 py-20 sm:px-6 sm:py-24">
-          <div className="mx-auto max-w-6xl">
-            <div className="mx-auto max-w-2xl text-center">
-              <h2 className="font-display text-3xl font-semibold tracking-tight sm:text-4xl">
-                Simple, transparent pricing
-              </h2>
-              <p className="mt-3 text-base leading-7 text-muted-foreground">
-                Start free. Upgrade when your writing does.
+        {/* Testimonial */}
+        <section className="px-6 pb-28">
+          <div className="mx-auto grid max-w-5xl items-center gap-10 md:grid-cols-[0.7fr_1.3fr]">
+            <Reveal>
+              <p className="font-display text-2xl font-bold tracking-tight text-ink-soft sm:text-3xl">
+                Read by some of{" "}
+                <span className="text-ink">the best</span> in the industry
               </p>
-            </div>
-            <div className="mt-12 grid items-start gap-4 lg:grid-cols-3">
-              {plans.map((plan) => (
-                <Card
-                  key={plan.name}
-                  className={plan.highlight ? "border-primary/40 bg-primary/[0.03] shadow-lg" : ""}
-                >
-                  <div className="p-6">
-                    <div className="flex items-center justify-between">
-                      <h3 className="font-display text-lg font-semibold tracking-tight">
-                        {plan.name}
-                      </h3>
-                      {plan.highlight && (
-                        <Badge>Most popular</Badge>
-                      )}
-                    </div>
-                    <div className="mt-4 flex items-baseline gap-1">
-                      <span className="font-display text-4xl font-semibold tracking-tight">
-                        {plan.price}
-                      </span>
-                      {plan.period && (
-                        <span className="text-sm text-muted-foreground">
-                          {plan.period}
-                        </span>
-                      )}
-                    </div>
-                    <p className="mt-2 text-sm leading-6 text-muted-foreground">
-                      {plan.description}
-                    </p>
-                    <Link
-                      href={plan.href}
-                      className={buttonVariants({
-                        variant: plan.highlight ? "default" : "outline",
-                        className: "mt-5 w-full",
-                      })}
-                    >
-                      {plan.cta}
-                    </Link>
-                    <ul className="mt-6 space-y-2.5">
-                      {plan.features.map((feature) => (
-                        <li
-                          key={feature}
-                          className="flex items-start gap-2 text-sm text-muted-foreground"
-                        >
-                          <Check className="mt-0.5 size-4 shrink-0 text-primary" />
-                          {feature}
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                </Card>
-              ))}
-            </div>
+            </Reveal>
+            <Reveal delay={120}>
+              <figure className="rounded-[22px] bg-paper-card p-8 shadow-[0_30px_70px_rgba(10,10,10,0.08)] sm:p-11">
+                <blockquote className="font-display text-lg leading-snug font-semibold tracking-tight sm:text-2xl">
+                  &ldquo;Serif is the first AI writing tool that actually sounds
+                  like me by the second draft — not the fifth.&rdquo;
+                </blockquote>
+                <figcaption className="mt-6 flex items-center gap-3">
+                  <span className="size-10 shrink-0 rounded-full bg-gradient-to-br from-gold to-[#7a5a2f]" />
+                  <span>
+                    <span className="font-display block text-sm font-bold">
+                      Priya Sharma
+                    </span>
+                    <span className="block text-xs text-ink-soft">
+                      Founder, Learn Writing Co.
+                    </span>
+                    <span className="mt-0.5 block text-xs tracking-[0.2em] text-gold-deep">
+                      ★★★★★
+                    </span>
+                  </span>
+                </figcaption>
+              </figure>
+            </Reveal>
           </div>
         </section>
 
-        <section className="border-t border-border/70 bg-muted/30 px-4 py-16 sm:px-6 sm:py-20">
-          <div className="mx-auto max-w-4xl text-center">
-            <Badge
-              variant="outline"
-              className="gap-1.5 border-primary/20 bg-primary/5 text-primary"
-            >
-              <TrendingUp className="size-3" />
-              Start today
-            </Badge>
-            <h2 className="mt-5 font-display text-3xl font-semibold tracking-tight text-balance sm:text-4xl">
-              Your next great post is minutes away.
+        {/* Pricing */}
+        <section id="pricing" className="scroll-mt-24 px-6 pb-28">
+          <Reveal className="mx-auto max-w-xl text-center">
+            <h2 className="font-display text-3xl font-bold tracking-tighter sm:text-4xl">
+              Simple, transparent pricing
             </h2>
-            <p className="mx-auto mt-3 max-w-md text-base leading-7 text-muted-foreground">
-              Join Serif and let AI handle the heavy lifting while you focus on
-              the writing.
+            <p className="mt-3 text-sm text-ink-soft">
+              Start free. Upgrade when your writing does.
             </p>
-            <div className="mt-7 flex flex-col items-center justify-center gap-3 sm:flex-row">
-              <Link href="/signup" className={buttonVariants({ size: "lg", className: "gap-1.5" })}>
-                Start Writing
-                <ArrowRight className="size-4" />
-              </Link>
-              <Link
-                href="/blog"
-                className={buttonVariants({ size: "lg", variant: "outline" })}
-              >
-                Read the blog
-              </Link>
-            </div>
+          </Reveal>
+          <div className="mx-auto mt-12 grid max-w-3xl gap-5 sm:grid-cols-2">
+            {plans.map((plan, i) => (
+              <Reveal key={plan.name} delay={i * 100}>
+                <div
+                  className={`relative flex h-full flex-col rounded-2xl bg-paper-card p-7 shadow-[0_18px_50px_rgba(10,10,10,0.08)] ${
+                    plan.highlight ? "ring-2 ring-gold-deep/50" : ""
+                  }`}
+                >
+                  <div className="flex items-center justify-between">
+                    <h3 className="font-display text-lg font-bold">{plan.name}</h3>
+                    {plan.highlight && (
+                      <span className="rounded-full bg-gold px-2.5 py-1 font-mono text-[10px] tracking-wide text-ink uppercase">
+                        Best value
+                      </span>
+                    )}
+                  </div>
+                  <div className="mt-4 flex items-baseline gap-1">
+                    <span className="font-display text-4xl font-bold tracking-tight">
+                      {plan.price}
+                    </span>
+                    <span className="text-sm text-ink-soft">{plan.period}</span>
+                  </div>
+                  <p className="mt-2 text-sm leading-relaxed text-ink-soft">
+                    {plan.description}
+                  </p>
+                  <Link
+                    href={plan.href}
+                    className={`mt-6 w-full rounded-full py-3 text-center text-sm font-semibold transition-colors ${
+                      plan.highlight
+                        ? "bg-ink text-paper hover:bg-ink/85"
+                        : "border border-ink/20 hover:bg-ink/[0.04]"
+                    }`}
+                  >
+                    {plan.cta}
+                  </Link>
+                  <ul className="mt-6 space-y-2.5">
+                    {plan.features.map((feature) => (
+                      <li
+                        key={feature}
+                        className="flex items-start gap-2 text-sm text-ink-soft"
+                      >
+                        <Check className="mt-0.5 size-4 shrink-0 text-gold-deep" />
+                        {feature}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              </Reveal>
+            ))}
           </div>
         </section>
-      </main>
+
+        {/* Closing CTA */}
+        <section className="px-6 pt-4 pb-32 text-center">
+          <Reveal>
+            <h2 className="font-display text-5xl leading-[0.98] font-bold tracking-tighter sm:text-7xl lg:text-8xl">
+              Start your
+              <br />
+              <span className="font-medium text-ink-soft">next</span> post.
+            </h2>
+            <Link
+              href="/signup"
+              className="font-display mt-11 inline-block rounded-full bg-ink px-11 py-5 text-lg font-bold text-paper transition-transform duration-300 hover:-translate-y-1 hover:scale-[1.02] hover:shadow-[0_20px_50px_rgba(10,10,10,0.25)] motion-reduce:transition-none motion-reduce:hover:translate-y-0 motion-reduce:hover:scale-100"
+            >
+              Start writing — it&apos;s free
+            </Link>
+          </Reveal>
+        </section>
+      </div>
     </div>
   );
 }

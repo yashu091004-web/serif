@@ -1,18 +1,11 @@
 import Link from "next/link";
-import { FileText, PenLine, Eye, CircleCheck, ListTodo, CalendarDays } from "lucide-react";
+import { FileText, PenLine, CircleCheck, Plus } from "lucide-react";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import { initialStats, initialTasks } from "@/lib/dashboard-data";
 import { RecentPosts } from "@/components/dashboard/recent-posts";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
-
-const taskStatusStyles = {
-  done: "bg-emerald-500/10 text-emerald-600 dark:text-emerald-500",
-  "in-progress": "bg-sky-500/10 text-sky-600 dark:text-sky-500",
-  todo: "bg-muted text-muted-foreground",
-} as const;
+import type { PostStatus } from "@/lib/types";
 
 function firstName(fullName: string): string {
   return fullName.split(/\s+/)[0] || fullName;
@@ -28,36 +21,59 @@ export default async function DashboardPage() {
     redirect("/login");
   }
 
-  const name =
+  const fallbackName =
     (user.user_metadata?.full_name as string) ||
     (user.user_metadata?.first_name as string) ||
     user.email?.split("@")[0] ||
     "Writer";
+  let name = fallbackName;
+  try {
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("full_name")
+      .eq("id", user.id)
+      .maybeSingle();
+    if (profile?.full_name?.trim()) name = profile.full_name.trim();
+  } catch {}
+
+  async function countByStatus(status?: PostStatus): Promise<number> {
+    let query = supabase.from("posts").select("id", { count: "exact", head: true });
+    if (status) query = query.eq("status", status);
+    const { count, error } = await query;
+    if (error) return 0;
+    return count ?? 0;
+  }
+
+  const [totalPosts, drafts, published] = await Promise.all([
+    countByStatus(),
+    countByStatus("draft"),
+    countByStatus("published"),
+  ]);
 
   const stats = [
     {
       label: "Total Posts",
-      value: initialStats.totalPosts,
+      value: totalPosts,
       icon: FileText,
-      hint: "Across all categories",
+      hint: "Across all statuses",
     },
     {
-      label: "Drafts in Progress",
-      value: initialStats.drafts,
+      label: "Drafts",
+      value: drafts,
       icon: PenLine,
-      hint: "2 due this week",
+      hint: "Not published yet",
     },
     {
-      label: "Monthly Views",
-      value: initialStats.monthlyViews,
-      icon: Eye,
-      hint: "↑ 18% from last month",
+      label: "Published",
+      value: published,
+      icon: CircleCheck,
+      hint: "Live on your blog",
     },
   ];
 
   return (
     <div className="space-y-8">
-      <header className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+      <header className="animate-in fade-in slide-in-from-bottom-3 flex flex-col gap-4 duration-500 ease-out [animation-fill-mode:both] motion-reduce:animate-none sm:flex-row sm:items-end sm:justify-between">
         <div>
           <h1 className="font-display text-2xl font-semibold tracking-tight sm:text-3xl">
             Welcome back, {firstName(name)}.
@@ -67,14 +83,18 @@ export default async function DashboardPage() {
           </p>
         </div>
         <Button render={<Link href="/dashboard/blogs/new" />} className="gap-1.5">
-          <PenLine className="size-4" />
+          <Plus className="size-4" />
           New Post
         </Button>
       </header>
 
       <section className="grid gap-4 sm:grid-cols-3">
-        {stats.map((stat) => (
-          <Card key={stat.label} className="p-5">
+        {stats.map((stat, index) => (
+          <Card
+            key={stat.label}
+            style={{ animationDelay: `${80 + index * 80}ms` }}
+            className="animate-in fade-in slide-in-from-bottom-3 p-5 duration-500 ease-out [animation-fill-mode:both] transition-shadow hover:shadow-md motion-reduce:animate-none"
+          >
             <div className="flex items-center justify-between">
               <span className="text-sm font-medium text-muted-foreground">
                 {stat.label}
@@ -91,55 +111,9 @@ export default async function DashboardPage() {
         ))}
       </section>
 
-      <section className="overflow-hidden rounded-xl ring-1 ring-foreground/10">
-        <div className="flex items-center justify-between border-b border-border/80 px-4 py-3">
-          <div className="flex items-center gap-2">
-            <ListTodo className="size-4 text-muted-foreground" />
-            <h2 className="font-display text-base font-semibold tracking-tight">
-              Upcoming tasks
-            </h2>
-          </div>
-        </div>
-        <ul className="divide-y divide-border/60">
-          {initialTasks.map((task) => (
-            <li
-              key={task.id}
-              className="flex items-center gap-3 px-4 py-3"
-            >
-              {task.status === "done" ? (
-                <CircleCheck className="size-4.5 shrink-0 text-emerald-500" />
-              ) : (
-                <span
-                  className="size-4.5 shrink-0 rounded-full border-2 border-border"
-                  aria-hidden
-                />
-              )}
-              <span
-                className={
-                  task.status === "done"
-                    ? "flex-1 text-sm text-muted-foreground line-through"
-                    : "flex-1 text-sm font-medium"
-                }
-              >
-                {task.title}
-              </span>
-              <Badge className={taskStatusStyles[task.status]}>
-                {task.status === "in-progress"
-                  ? "In progress"
-                  : task.status === "done"
-                    ? "Done"
-                    : "To do"}
-              </Badge>
-              <span className="flex items-center gap-1 text-xs text-muted-foreground">
-                <CalendarDays className="size-3.5" />
-                {task.due}
-              </span>
-            </li>
-          ))}
-        </ul>
-      </section>
-
-      <RecentPosts />
+      <div className="animate-in fade-in slide-in-from-bottom-3 duration-500 ease-out [animation-delay:240ms] [animation-fill-mode:both] motion-reduce:animate-none">
+        <RecentPosts />
+      </div>
     </div>
   );
 }

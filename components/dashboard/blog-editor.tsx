@@ -1,108 +1,115 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { ArrowLeft, Save, Send, Sparkles, ImageIcon } from "lucide-react";
+import { ArrowLeft, ImagePlus, Loader2, Save, Send, X } from "lucide-react";
 import { toast } from "sonner";
-import { createPost, updatePost, getPostById } from "@/lib/dashboard-store";
-import { dashboardCategories } from "@/lib/dashboard-data";
-import type { PostStatus } from "@/lib/types";
+import { createClient } from "@/lib/supabase/client";
+import { createPost, updatePost, uploadPostImage } from "@/lib/posts";
+import type { BlogPost, PostStatus } from "@/lib/types";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { RichTextEditor } from "@/components/dashboard/rich-text-editor";
 
-const coverPresets = [
-  "from-indigo-500 via-violet-500 to-purple-700",
-  "from-fuchsia-500 via-purple-600 to-violet-800",
-  "from-sky-500 via-blue-600 to-indigo-700",
-  "from-emerald-500 via-teal-500 to-cyan-700",
-  "from-amber-500 via-orange-500 to-rose-600",
-  "from-rose-500 via-pink-500 to-fuchsia-600",
-];
+const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
 
-const emptyForm = {
-  title: "",
-  subtitle: "",
-  category: dashboardCategories[0],
-  cover: coverPresets[0],
-  content: "",
-  seoTitle: "",
-  seoDescription: "",
-};
+function countWords(html: string): number {
+  return html
+    .replace(/<[^>]*>/g, " ")
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean).length;
+}
 
-export function BlogEditor({
-  postId,
-}: {
-  postId?: string;
-}) {
+interface BlogEditorProps {
+  post?: BlogPost;
+  initial?: {
+    title?: string;
+    summary?: string;
+    body?: string;
+  };
+  heading?: string;
+}
+
+export function BlogEditor({ post, initial, heading }: BlogEditorProps) {
   const router = useRouter();
-  const isEdit = Boolean(postId);
-  const existing = postId ? getPostById(postId) : undefined;
-
-  const [form, setForm] = useState(
-    existing
-      ? {
-          title: existing.title,
-          subtitle: existing.subtitle,
-          category: existing.category,
-          cover: existing.cover,
-          content: existing.content,
-          seoTitle: existing.seoTitle,
-          seoDescription: existing.seoDescription,
-        }
-      : emptyForm
-  );
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [title, setTitle] = useState(post?.title ?? initial?.title ?? "");
+  const [summary, setSummary] = useState(post?.summary ?? initial?.summary ?? "");
+  const [imageUrl, setImageUrl] = useState(post?.imageUrl ?? "");
+  const [body, setBody] = useState(post?.body ?? initial?.body ?? "");
+  const [uploading, setUploading] = useState(false);
   const [saving, setSaving] = useState<PostStatus | null>(null);
 
-  if (isEdit && !existing) {
-    return (
-      <div className="flex flex-col items-center justify-center py-24 text-center">
-        <p className="text-sm font-medium">Post not found</p>
-        <p className="mt-1 text-sm text-muted-foreground">
-          It may have been deleted.
-        </p>
-        <Button
-          render={<Link href="/dashboard/blogs" />}
-          variant="outline"
-          className="mt-4 gap-1.5"
-        >
-          <ArrowLeft className="size-4" />
-          Back to blogs
-        </Button>
-      </div>
-    );
+  async function handleImageChange(file: File | undefined) {
+    if (!file) return;
+    if (!file.type.startsWith("image/")) {
+      toast.error("Please choose an image file.");
+      return;
+    }
+    if (file.size > MAX_IMAGE_BYTES) {
+      toast.error("Image must be smaller than 5 MB.");
+      return;
+    }
+    setUploading(true);
+    try {
+      const supabase = createClient();
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+      if (!user) throw new Error("You need to be signed in to upload images.");
+      const url = await uploadPostImage(supabase, user.id, file);
+      setImageUrl(url);
+      toast.success("Image uploaded.");
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message : "Image upload failed."
+      );
+    } finally {
+      setUploading(false);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    }
   }
 
-  function update<K extends keyof typeof form>(key: K, value: string) {
-    setForm((prev) => ({ ...prev, [key]: value }));
-  }
-
-  function save(status: PostStatus) {
-    if (!form.title.trim()) {
+  async function save(status: PostStatus) {
+    if (!title.trim()) {
       toast.error("Please add a title before saving.");
       return;
     }
     setSaving(status);
-    const input = { ...form, status };
-    if (isEdit && postId) {
-      updatePost(postId, input);
-    } else {
-      createPost(input);
+    try {
+      const supabase = createClient();
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+      if (!user) throw new Error("You need to be signed in.");
+      const input = {
+        title,
+        summary,
+        body,
+        imageUrl: imageUrl || null,
+      };
+      if (post) {
+        await updatePost(supabase, post.id, input, status);
+      } else {
+        await createPost(supabase, user.id, input, status);
+      }
+      toast.success(
+        status === "published" ? "Post published" : "Draft saved",
+        { description: `"${title.trim()}" was saved.` }
+      );
+      router.push("/dashboard/blogs");
+      router.refresh();
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message : "Something went wrong."
+      );
+    } finally {
+      setSaving(null);
     }
-    toast.success(
-      status === "published" ? "Post published" : "Draft saved",
-      { description: `"${form.title}" was saved.` }
-    );
-    router.push("/dashboard/blogs");
   }
 
   return (
@@ -116,12 +123,10 @@ export function BlogEditor({
           Back to blogs
         </Link>
         <h1 className="mt-3 font-display text-2xl font-semibold tracking-tight sm:text-3xl">
-          {isEdit ? "Edit post" : "New post"}
+          {heading ?? (post ? "Edit post" : "New post")}
         </h1>
         <p className="mt-1 text-sm text-muted-foreground">
-          {isEdit
-            ? "Update the content and metadata for this post."
-            : "Create a new post with the help of your AI writing tools."}
+          Select text in the editor for formatting options.
         </p>
       </div>
 
@@ -130,124 +135,80 @@ export function BlogEditor({
           <Label htmlFor="title">Title</Label>
           <Input
             id="title"
-            value={form.title}
-            onChange={(e) => update("title", e.target.value)}
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
             placeholder="A headline that earns the click"
             className="h-10 text-base"
           />
         </div>
 
         <div className="space-y-2">
-          <Label htmlFor="subtitle">Subtitle</Label>
-          <Input
-            id="subtitle"
-            value={form.subtitle}
-            onChange={(e) => update("subtitle", e.target.value)}
+          <Label htmlFor="summary">Summary</Label>
+          <Textarea
+            id="summary"
+            value={summary}
+            onChange={(e) => setSummary(e.target.value)}
             placeholder="A short, specific promise about what the reader will learn."
-            className="h-10 text-base"
+            className="min-h-20"
           />
         </div>
 
-        <div className="grid gap-5 sm:grid-cols-2">
-          <div className="space-y-2">
-            <Label htmlFor="category">Category</Label>
-            <Select value={form.category} onValueChange={(value) => update("category", value ?? form.category)}>
-              <SelectTrigger className="w-full">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {dashboardCategories.map((category) => (
-                  <SelectItem key={category} value={category}>
-                    {category}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="cover">Featured image</Label>
-            <Input
-              id="cover"
-              value={form.cover}
-              onChange={(e) => update("cover", e.target.value)}
-              placeholder="Image URL or gradient"
-              className="h-9"
-            />
-          </div>
-        </div>
-
         <div className="space-y-2">
-          <Label>Cover preview</Label>
-          <div className="flex flex-wrap items-center gap-2">
-            {coverPresets.map((preset) => (
-              <button
-                key={preset}
-                type="button"
-                onClick={() => update("cover", preset)}
-                aria-label={`Use gradient ${preset}`}
-                className={`h-8 w-14 rounded-lg bg-gradient-to-br transition-transform hover:scale-105 ${
-                  form.cover === preset
-                    ? "ring-2 ring-primary ring-offset-2 ring-offset-background"
-                    : "opacity-70"
-                } ${preset}`}
+          <Label>Featured image</Label>
+          {imageUrl ? (
+            <div className="relative overflow-hidden rounded-lg border border-border">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={imageUrl}
+                alt="Featured image preview"
+                className="h-44 w-full object-cover"
               />
-            ))}
-            <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
-              <ImageIcon className="size-3.5" />
-              Or paste an image URL above.
-            </span>
-          </div>
+              <button
+                type="button"
+                onClick={() => setImageUrl("")}
+                aria-label="Remove image"
+                className="absolute top-2 right-2 inline-flex size-7 items-center justify-center rounded-md bg-background/90 text-muted-foreground shadow transition-colors hover:text-foreground"
+              >
+                <X className="size-4" />
+              </button>
+            </div>
+          ) : (
+            <button
+              type="button"
+              onClick={() => fileInputRef.current?.click()}
+              disabled={uploading}
+              className="flex h-28 w-full flex-col items-center justify-center gap-1.5 rounded-lg border border-dashed border-border bg-muted/30 text-sm text-muted-foreground transition-colors hover:bg-muted/50 disabled:opacity-60"
+            >
+              {uploading ? (
+                <>
+                  <Loader2 className="size-4 animate-spin" />
+                  Uploading…
+                </>
+              ) : (
+                <>
+                  <ImagePlus className="size-4" />
+                  Click to upload an image (max 5 MB)
+                </>
+              )}
+            </button>
+          )}
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/*"
+            className="hidden"
+            onChange={(e) => handleImageChange(e.target.files?.[0])}
+          />
         </div>
 
         <div className="space-y-2">
           <div className="flex items-center justify-between">
-            <Label htmlFor="content">Content</Label>
+            <Label>Content</Label>
             <span className="text-xs text-muted-foreground">
-              {form.content.trim().split(/\s+/).filter(Boolean).length} words
+              {countWords(body)} words · ~{Math.max(1, Math.ceil(countWords(body) / 200))} min read
             </span>
           </div>
-          <Textarea
-            id="content"
-            value={form.content}
-            onChange={(e) => update("content", e.target.value)}
-            placeholder="Write in Markdown… Use headings, lists, and code blocks to structure your post."
-            className="min-h-[18rem] text-base leading-7"
-          />
-        </div>
-      </section>
-
-      <section className="space-y-5 rounded-xl ring-1 ring-foreground/10 p-5 sm:p-6">
-        <div className="flex items-center gap-2">
-          <Sparkles className="size-4 text-primary" />
-          <h2 className="font-display text-base font-semibold tracking-tight">
-            SEO &amp; search preview
-          </h2>
-        </div>
-        <div className="space-y-2">
-          <Label htmlFor="seo-title">SEO title</Label>
-          <Input
-            id="seo-title"
-            value={form.seoTitle}
-            onChange={(e) => update("seoTitle", e.target.value)}
-            placeholder="An optimized title for search engines (60 characters or less)."
-            className="h-10"
-          />
-          <p className="text-xs text-muted-foreground">
-            {form.seoTitle.length}/60 characters
-          </p>
-        </div>
-        <div className="space-y-2">
-          <Label htmlFor="seo-description">SEO description</Label>
-          <Textarea
-            id="seo-description"
-            value={form.seoDescription}
-            onChange={(e) => update("seoDescription", e.target.value)}
-            placeholder="A concise summary for search results and social sharing."
-            className="min-h-20"
-          />
-          <p className="text-xs text-muted-foreground">
-            {form.seoDescription.length}/160 characters
-          </p>
+          <RichTextEditor initialContent={body} onChange={setBody} />
         </div>
       </section>
 
@@ -263,7 +224,7 @@ export function BlogEditor({
           type="button"
           variant="outline"
           onClick={() => save("draft")}
-          disabled={saving !== null}
+          disabled={saving !== null || uploading}
           className="gap-1.5"
         >
           <Save className="size-4" />
@@ -272,7 +233,7 @@ export function BlogEditor({
         <Button
           type="button"
           onClick={() => save("published")}
-          disabled={saving !== null}
+          disabled={saving !== null || uploading}
           className="gap-1.5"
         >
           <Send className="size-4" />

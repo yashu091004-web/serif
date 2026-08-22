@@ -1,0 +1,27 @@
+$ next dev
+▲ Next.js 16.3.1 (Turbopack)
+- Local:         http://localhost:3000
+- Network:       http://192.168.1.3:3000
+- Environments: .env.local
+✓ Ready in 2.7s
+✓ Running next.config.ts took 159ms
+
+ GET /pricing 200 in 4.4s (next.js: 688ms, proxy.ts: 1169ms, application-code: 2.6s)
+ GET /pricing 200 in 823ms (next.js: 23ms, proxy.ts: 249ms, application-code: 552ms)
+ GET /pricing 200 in 305ms (next.js: 21ms, proxy.ts: 11ms, application-code: 273ms)
+ GET /pricing 200 in 2.3s (next.js: 132ms, proxy.ts: 831ms, application-code: 1327ms)
+ GET /pricing 200 in 2.3s (next.js: 27ms, proxy.ts: 593ms, application-code: 1634ms)
+ GET /pricing 200 in 1816ms (next.js: 15ms, proxy.ts: 675ms, application-code: 1126ms)
+ GET /pricing 200 in 4.3s (next.js: 579ms, proxy.ts: 1339ms, application-code: 2.4s)
+ POST /api/stripe/checkout 200 in 4.9s (next.js: 921ms, proxy.ts: 1201ms, application-code: 2.8s)
+ GET /success?session_id=cs_test_b1prEi6GosCOFS0qurGE7HKgh3h0zpYTxeY7CaXeIoBuYjTf0fcWhlr5t1 200 in 5.0s (next.js: 2.7s, proxy.ts: 951ms, application-code: 1266ms)
+○ Compiling /dashboard ...
+ GET /dashboard 200 in 7.3s (next.js: 4.6s, proxy.ts: 293ms, application-code: 2.5s)
+ GET /dashboard 200 in 2.0s (next.js: 67ms, proxy.ts: 258ms, application-code: 1713ms)
+ GET /dashboard/blogs/new 200 in 2.7s (next.js: 1827ms, proxy.ts: 239ms, application-code: 609ms)
+ GET /pricing 200 in 1104ms (next.js: 206ms, proxy.ts: 294ms, application-code: 604ms)
+ GET /dashboard/blogs/new 200 in 2.7s (next.js: 124ms, proxy.ts: 807ms, application-code: 1759ms)
+ GET / 200 in 2.9s (next.js: 1950ms, proxy.ts: 297ms, application-code: 682ms)
+ GET / 200 in 557ms (next.js: 25ms, proxy.ts: 179ms, application-code: 353ms)
+[?25h
+[ELIFECYCLE] Command failed with exit code 1.

@@ -30,11 +30,13 @@ export function DashboardShell({
   name,
   email,
   initials,
+  avatarUrl,
   children,
 }: {
   name: string;
   email: string;
   initials: string;
+  avatarUrl: string | null;
   children: React.ReactNode;
 }) {
   const isTablet = useMediaQuery("(max-width: 1023px)");
@@ -51,7 +53,13 @@ export function DashboardShell({
           collapsed ? "w-16" : "w-60"
         )}
       >
-        <SidebarNav collapsed={collapsed} name={name} email={email} initials={initials} />
+        <SidebarNav
+          collapsed={collapsed}
+          name={name}
+          email={email}
+          initials={initials}
+          avatarUrl={avatarUrl}
+        />
       </aside>
 
       <div
@@ -81,6 +89,7 @@ export function DashboardShell({
                 name={name}
                 email={email}
                 initials={initials}
+                avatarUrl={avatarUrl}
                 onNavigate={() => setMobileOpen(false)}
               />
             </SheetContent>

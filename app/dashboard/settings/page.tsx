@@ -1,14 +1,16 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useTheme } from "next-themes";
-import { Bell, LogOut, Palette, User, Mail, ImageIcon } from "lucide-react";
+import { Bell, LogOut, Palette, User, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { logout } from "@/app/actions/auth";
+import { createClient } from "@/lib/supabase/client";
+import { updateProfile, uploadAvatar, authorInitials } from "@/lib/profiles";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
   Select,
   SelectContent,
@@ -16,6 +18,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+
+const MAX_AVATAR_BYTES = 5 * 1024 * 1024;
 
 function Toggle({
   checked,
@@ -57,15 +61,20 @@ function Section({
   icon: Icon,
   title,
   description,
+  delay = 0,
   children,
 }: {
   icon: React.ComponentType<{ className?: string }>;
   title: string;
   description: string;
+  delay?: number;
   children: React.ReactNode;
 }) {
   return (
-    <section className="rounded-xl ring-1 ring-foreground/10">
+    <section
+      style={delay ? { animationDelay: `${delay}ms` } : undefined}
+      className="animate-in fade-in slide-in-from-bottom-3 rounded-xl ring-1 ring-foreground/10 duration-500 ease-out [animation-fill-mode:both] motion-reduce:animate-none"
+    >
       <div className="flex items-center gap-3 border-b border-border/80 px-5 py-4">
         <span className="flex size-9 items-center justify-center rounded-lg border border-primary/20 bg-primary/5 text-primary">
           <Icon className="size-4.5" />
@@ -84,11 +93,13 @@ function Section({
 
 export default function SettingsPage() {
   const { theme, setTheme } = useTheme();
-  const [profile, setProfile] = useState({
-    name: "You",
-    email: "you@example.com",
-    avatar: "",
-  });
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const [name, setName] = useState("");
+  const [email, setEmail] = useState("");
+  const [avatarUrl, setAvatarUrl] = useState("");
   const [notifications, setNotifications] = useState({
     newComments: true,
     weeklyDigest: true,
@@ -96,8 +107,86 @@ export default function SettingsPage() {
     publishReminders: true,
   });
 
-  function saveProfile() {
-    toast.success("Profile updated");
+  useEffect(() => {
+    let cancelled = false;
+    const supabase = createClient();
+    supabase.auth
+      .getUser()
+      .then(({ data }) => {
+        if (cancelled || !data.user) {
+          if (!cancelled) setLoading(false);
+          return null;
+        }
+        if (!cancelled) setEmail(data.user.email ?? "");
+        return supabase
+          .from("profiles")
+          .select("full_name, avatar_url")
+          .eq("id", data.user.id)
+          .maybeSingle();
+      })
+      .then((result) => {
+        if (cancelled || !result) return;
+        setName(result.data?.full_name ?? "");
+        setAvatarUrl(result.data?.avatar_url ?? "");
+        setLoading(false);
+      })
+      .catch(() => {
+        if (!cancelled) setLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  async function saveProfile() {
+    const supabase = createClient();
+    const { data } = await supabase.auth.getUser();
+    if (!data.user) {
+      toast.error("You need to be signed in");
+      return;
+    }
+    setSaving(true);
+    try {
+      await updateProfile(supabase, data.user.id, { fullName: name });
+      toast.success("Profile updated");
+    } catch {
+      toast.error("Failed to update profile");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function handleAvatarChange(
+    event: React.ChangeEvent<HTMLInputElement>
+  ) {
+    const file = event.target.files?.[0];
+    event.target.value = "";
+    if (!file) return;
+    if (!file.type.startsWith("image/")) {
+      toast.error("Please choose an image file");
+      return;
+    }
+    if (file.size > MAX_AVATAR_BYTES) {
+      toast.error("Image must be under 5 MB");
+      return;
+    }
+    const supabase = createClient();
+    const { data } = await supabase.auth.getUser();
+    if (!data.user) {
+      toast.error("You need to be signed in");
+      return;
+    }
+    setUploading(true);
+    try {
+      const url = await uploadAvatar(supabase, data.user.id, file);
+      await updateProfile(supabase, data.user.id, { avatarUrl: url });
+      setAvatarUrl(url);
+      toast.success("Avatar updated");
+    } catch {
+      toast.error("Failed to upload avatar");
+    } finally {
+      setUploading(false);
+    }
   }
 
   return (
@@ -111,16 +200,41 @@ export default function SettingsPage() {
         </p>
       </header>
 
-      <Section icon={User} title="Profile" description="How you appear to readers.">
+      <Section
+        icon={User}
+        delay={0}
+        title="Profile"
+        description="How you appear to readers."
+      >
         <div className="flex items-start gap-4">
           <div className="flex flex-col items-center gap-2">
             <Avatar className="size-16">
+              {avatarUrl && <AvatarImage src={avatarUrl} alt={name} />}
               <AvatarFallback className="bg-primary/10 font-display text-lg font-semibold text-primary">
-                YO
+                {authorInitials(name || email || "?")}
               </AvatarFallback>
             </Avatar>
-            <Button variant="outline" size="sm">
-              Change avatar
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*"
+              onChange={handleAvatarChange}
+              className="hidden"
+            />
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={uploading}
+              onClick={() => fileInputRef.current?.click()}
+            >
+              {uploading ? (
+                <>
+                  <Loader2 className="size-3.5 animate-spin" />
+                  Uploading…
+                </>
+              ) : (
+                "Change avatar"
+              )}
             </Button>
           </div>
           <div className="flex-1 space-y-4">
@@ -128,44 +242,36 @@ export default function SettingsPage() {
               <Label htmlFor="name">Name</Label>
               <Input
                 id="name"
-                value={profile.name}
-                onChange={(e) => setProfile({ ...profile, name: e.target.value })}
+                placeholder="Your name"
+                value={name}
+                disabled={loading}
+                onChange={(e) => setName(e.target.value)}
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="email">
-                <span className="flex items-center gap-1.5">
-                  <Mail className="size-3.5" />
-                  Email
-                </span>
-              </Label>
-              <Input
-                id="email"
-                type="email"
-                value={profile.email}
-                onChange={(e) => setProfile({ ...profile, email: e.target.value })}
-              />
+              <Label htmlFor="email">Email</Label>
+              <Input id="email" type="email" value={email} disabled readOnly />
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="avatar">
-                <span className="flex items-center gap-1.5">
-                  <ImageIcon className="size-3.5" />
-                  Avatar URL
-                </span>
-              </Label>
-              <Input
-                id="avatar"
-                placeholder="https://…"
-                value={profile.avatar}
-                onChange={(e) => setProfile({ ...profile, avatar: e.target.value })}
-              />
-            </div>
-            <Button onClick={saveProfile}>Save profile</Button>
+            <Button onClick={saveProfile} disabled={saving || loading}>
+              {saving ? (
+                <>
+                  <Loader2 className="size-4 animate-spin" />
+                  Saving…
+                </>
+              ) : (
+                "Save profile"
+              )}
+            </Button>
           </div>
         </div>
       </Section>
 
-      <Section icon={Bell} title="Notifications" description="Choose what you want to hear about.">
+      <Section
+        icon={Bell}
+        delay={80}
+        title="Notifications"
+        description="Choose what you want to hear about."
+      >
         <div className="divide-y divide-border/60">
           <Toggle
             checked={notifications.newComments}
@@ -194,7 +300,12 @@ export default function SettingsPage() {
         </div>
       </Section>
 
-      <Section icon={Palette} title="Preferences" description="Appearance and display options.">
+      <Section
+        icon={Palette}
+        delay={160}
+        title="Preferences"
+        description="Appearance and display options."
+      >
         <div className="space-y-2">
           <Label htmlFor="theme">Theme</Label>
           <Select value={theme} onValueChange={(value) => setTheme(value ?? "system")}>
@@ -210,7 +321,12 @@ export default function SettingsPage() {
         </div>
       </Section>
 
-      <Section icon={LogOut} title="Account" description="Sign out of your account on this device.">
+      <Section
+        icon={LogOut}
+        delay={240}
+        title="Account"
+        description="Sign out of your account on this device."
+      >
         <form action={logout}>
           <Button type="submit" variant="destructive" className="gap-1.5">
             <LogOut className="size-4" />
@@ -221,3 +337,4 @@ export default function SettingsPage() {
     </div>
   );
 }
+

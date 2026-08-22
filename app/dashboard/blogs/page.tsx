@@ -2,11 +2,12 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
-import { Eye, Pencil, Plus, Search, Trash2, ExternalLink } from "lucide-react";
+import { Pencil, Plus, Search, Trash2, ExternalLink } from "lucide-react";
 import { toast } from "sonner";
-import { useDashboard, deletePost } from "@/lib/dashboard-store";
-import { dashboardCategories } from "@/lib/dashboard-data";
+import { createClient } from "@/lib/supabase/client";
+import { deletePost } from "@/lib/posts";
 import type { BlogPost } from "@/lib/types";
+import { usePosts } from "@/lib/use-posts";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -37,28 +38,29 @@ function statusBadge(status: BlogPost["status"]) {
   );
 }
 
+function formatDate(iso: string | null): string {
+  return iso ? iso.slice(0, 10) : "—";
+}
+
 function sortPosts(posts: BlogPost[], sort: string): BlogPost[] {
   const sorted = [...posts];
   switch (sort) {
-    case "newest":
-      return sorted.sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
     case "oldest":
       return sorted.sort((a, b) => a.updatedAt.localeCompare(b.updatedAt));
-    case "views":
-      return sorted.sort((a, b) => b.views - a.views);
     case "title":
       return sorted.sort((a, b) => a.title.localeCompare(b.title));
+    case "newest":
     default:
-      return sorted;
+      return sorted.sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
   }
 }
 
 export default function BlogsPage() {
-  const { posts } = useDashboard();
+  const { posts, loading, refresh } = usePosts();
   const [tab, setTab] = useState<Tab>("all");
   const [query, setQuery] = useState("");
-  const [category, setCategory] = useState("All");
   const [sort, setSort] = useState("newest");
+  const [deletingId, setDeletingId] = useState<string | null>(null);
   const [pendingDelete, setPendingDelete] = useState<BlogPost | null>(null);
 
   const filtered = useMemo(() => {
@@ -66,11 +68,10 @@ export default function BlogsPage() {
     return posts.filter((post) => {
       if (tab === "drafts" && post.status !== "draft") return false;
       if (tab === "published" && post.status !== "published") return false;
-      if (category !== "All" && post.category !== category) return false;
       if (q && !post.title.toLowerCase().includes(q)) return false;
       return true;
     });
-  }, [posts, tab, query, category]);
+  }, [posts, tab, query]);
 
   const visible = sortPosts(filtered, sort);
 
@@ -80,11 +81,21 @@ export default function BlogsPage() {
     published: posts.filter((p) => p.status === "published").length,
   };
 
-  function confirmDelete() {
-    if (!pendingDelete) return;
-    deletePost(pendingDelete.id);
-    toast.success(`"${pendingDelete.title}" deleted`);
-    setPendingDelete(null);
+  async function confirmDelete() {
+    if (!pendingDelete || deletingId) return;
+    setDeletingId(pendingDelete.id);
+    try {
+      await deletePost(createClient(), pendingDelete.id);
+      toast.success(`"${pendingDelete.title}" deleted`);
+      setPendingDelete(null);
+      await refresh();
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message : "Failed to delete post."
+      );
+    } finally {
+      setDeletingId(null);
+    }
   }
 
   return (
@@ -113,7 +124,9 @@ export default function BlogsPage() {
           <TabsList variant="line" className="h-8">
             <TabsTrigger value="all">All Posts ({counts.all})</TabsTrigger>
             <TabsTrigger value="drafts">Drafts ({counts.drafts})</TabsTrigger>
-            <TabsTrigger value="published">Published ({counts.published})</TabsTrigger>
+            <TabsTrigger value="published">
+              Published ({counts.published})
+            </TabsTrigger>
           </TabsList>
         </Tabs>
 
@@ -128,27 +141,13 @@ export default function BlogsPage() {
               aria-label="Search posts"
             />
           </div>
-          <Select value={category} onValueChange={(value) => setCategory(value ?? "All")}>
+          <Select value={sort} onValueChange={(value) => setSort(value ?? "newest")}>
             <SelectTrigger className="w-full sm:w-36">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="All">All categories</SelectItem>
-              {dashboardCategories.map((categoryOption) => (
-                <SelectItem key={categoryOption} value={categoryOption}>
-                  {categoryOption}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          <Select value={sort} onValueChange={(value) => setSort(value ?? "newest")}>
-            <SelectTrigger className="w-full sm:w-36">
-              <SelectValue>{(value) => value ?? "Sort"}</SelectValue>
-            </SelectTrigger>
-            <SelectContent>
               <SelectItem value="newest">Newest first</SelectItem>
               <SelectItem value="oldest">Oldest first</SelectItem>
-              <SelectItem value="views">Most viewed</SelectItem>
               <SelectItem value="title">Title A–Z</SelectItem>
             </SelectContent>
           </Select>
@@ -156,15 +155,18 @@ export default function BlogsPage() {
       </div>
 
       <div className="overflow-hidden rounded-xl ring-1 ring-foreground/10">
-        <div className="hidden grid-cols-[minmax(0,1fr)_6.5rem_7rem_7rem_5rem_8rem] items-center gap-3 border-b border-border/80 bg-muted/40 px-4 py-2.5 text-xs font-medium text-muted-foreground lg:grid">
+        <div className="hidden grid-cols-[minmax(0,1fr)_6.5rem_7rem_7rem_8rem] items-center gap-3 border-b border-border/80 bg-muted/40 px-4 py-2.5 text-xs font-medium text-muted-foreground lg:grid">
           <span>Post</span>
           <span>Status</span>
           <span>Created</span>
           <span>Updated</span>
-          <span className="text-right">Views</span>
           <span className="text-right">Actions</span>
         </div>
-        {visible.length === 0 ? (
+        {loading ? (
+          <div className="px-4 py-14 text-center text-sm text-muted-foreground">
+            Loading posts…
+          </div>
+        ) : visible.length === 0 ? (
           <div className="px-4 py-14 text-center">
             <p className="text-sm font-medium">No posts found</p>
             <p className="mt-1 text-sm text-muted-foreground">
@@ -184,36 +186,46 @@ export default function BlogsPage() {
             {visible.map((post) => (
               <li
                 key={post.id}
-                className="flex flex-col gap-3 px-4 py-3 lg:grid lg:grid-cols-[minmax(0,1fr)_6.5rem_7rem_7rem_5rem_8rem] lg:items-center lg:gap-3"
+                className="flex flex-col gap-3 px-4 py-3 transition-colors hover:bg-muted/50 lg:grid lg:grid-cols-[minmax(0,1fr)_6.5rem_7rem_7rem_8rem] lg:items-center lg:gap-3"
               >
                 <div className="flex min-w-0 items-center gap-3">
-                  <div
-                    className={`hidden size-9 shrink-0 rounded-lg bg-gradient-to-br sm:block ${
-                      post.cover.startsWith("from-") ? post.cover : "from-muted to-muted"
-                    }`}
-                  />
+                  {post.imageUrl ? (
+                    /* eslint-disable-next-line @next/next/no-img-element */
+                    <img
+                      src={post.imageUrl}
+                      alt=""
+                      className="hidden size-9 shrink-0 rounded-lg object-cover sm:block"
+                    />
+                  ) : (
+                    <div className="hidden size-9 shrink-0 rounded-lg bg-gradient-to-br from-primary/30 via-fuchsia-500/20 to-sky-500/20 sm:block" />
+                  )}
                   <div className="min-w-0">
-                    <p className="truncate text-sm font-medium">{post.title}</p>
+                    <Link
+                      href={
+                        post.status === "published"
+                          ? `/blog/${post.slug}?from=/dashboard/blogs`
+                          : `/dashboard/blogs/${post.id}/edit`
+                      }
+                      className="block truncate text-sm font-medium transition-colors hover:text-primary"
+                    >
+                      {post.title}
+                    </Link>
                     <p className="truncate text-xs text-muted-foreground">
-                      {post.category}
+                      {post.readTime} min read · /{post.slug}
                     </p>
                   </div>
                 </div>
                 <div>{statusBadge(post.status)}</div>
-                <time className="text-sm text-muted-foreground" dateTime={post.publishedAt || post.updatedAt}>
-                  {post.publishedAt || "—"}
+                <time className="text-sm text-muted-foreground" dateTime={post.createdAt}>
+                  {formatDate(post.createdAt)}
                 </time>
                 <time className="text-sm text-muted-foreground" dateTime={post.updatedAt}>
-                  {post.updatedAt}
+                  {formatDate(post.updatedAt)}
                 </time>
-                <p className="flex items-center gap-1 text-sm text-muted-foreground lg:justify-end">
-                  <Eye className="size-3.5" />
-                  {post.views > 0 ? post.views.toLocaleString() : "—"}
-                </p>
                 <div className="flex items-center gap-1 lg:justify-end">
                   {post.status === "published" && (
                     <Button
-                      render={<Link href={`/blog/${post.slug}`} />}
+                      render={<Link href={`/blog/${post.slug}?from=/dashboard/blogs`} />}
                       variant="ghost"
                       size="icon-sm"
                       aria-label="View post"
@@ -233,6 +245,7 @@ export default function BlogsPage() {
                     variant="ghost"
                     size="icon-sm"
                     aria-label="Delete post"
+                    disabled={deletingId !== null}
                     onClick={() => setPendingDelete(post)}
                   >
                     <Trash2 className="size-4" />
@@ -254,11 +267,19 @@ export default function BlogsPage() {
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setPendingDelete(null)}>
+            <Button
+              variant="outline"
+              onClick={() => setPendingDelete(null)}
+              disabled={deletingId !== null}
+            >
               Cancel
             </Button>
-            <Button variant="destructive" onClick={confirmDelete}>
-              Delete
+            <Button
+              variant="destructive"
+              onClick={confirmDelete}
+              disabled={deletingId !== null}
+            >
+              {deletingId ? "Deleting…" : "Delete"}
             </Button>
           </DialogFooter>
         </DialogContent>

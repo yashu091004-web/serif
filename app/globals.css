@@ -7,10 +7,17 @@
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-  --font-display: var(--font-newsreader);
-  --font-heading: var(--font-newsreader);
+  --font-sans: var(--font-inter);
+  --font-mono: var(--font-ibm-plex-mono);
+  --font-display: var(--font-inter-tight);
+  --font-heading: var(--font-inter-tight);
+  /* Serif marketing palette — intentionally identical in light & dark themes */
+  --color-ink: var(--ink);
+  --color-ink-soft: var(--ink-soft);
+  --color-paper: var(--paper);
+  --color-paper-card: var(--paper-card);
+  --color-gold: var(--gold);
+  --color-gold-deep: var(--gold-deep);
   --color-sidebar-ring: var(--sidebar-ring);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
@@ -59,6 +66,13 @@
 }
 
 :root {
+  /* Fixed editorial palette (does not switch with theme) */
+  --ink: oklch(0.145 0.005 85);
+  --ink-soft: oklch(0.615 0.012 85);
+  --paper: oklch(0.965 0.006 90);
+  --paper-card: oklch(0.99 0.003 90);
+  --gold: oklch(0.73 0.105 85);
+  --gold-deep: oklch(0.52 0.09 80);
   --background: oklch(0.987 0.002 85);
   --foreground: oklch(0.22 0.008 85);
   --card: oklch(1 0 0);
@@ -94,6 +108,13 @@
 }
 
 .dark {
+  /* Fixed editorial palette (does not switch with theme) */
+  --ink: oklch(0.145 0.005 85);
+  --ink-soft: oklch(0.615 0.012 85);
+  --paper: oklch(0.965 0.006 90);
+  --paper-card: oklch(0.99 0.003 90);
+  --gold: oklch(0.73 0.105 85);
+  --gold-deep: oklch(0.52 0.09 80);
   --background: oklch(0.16 0.005 85);
   --foreground: oklch(0.955 0.003 85);
   --card: oklch(0.21 0.006 85);
@@ -140,5 +161,70 @@
 }
 
 ::selection {
-  @apply bg-primary/15 text-foreground;
+  background: var(--gold);
+  color: var(--ink);
+}
+
+/* Serif marketing: fixed film-grain dot texture overlay */
+.grain {
+  background-image: radial-gradient(
+    circle at 1px 1px,
+    rgba(255, 255, 255, 0.9) 1px,
+    transparent 0
+  );
+  background-size: 3px 3px;
+}
+
+/* Serif marketing: folded-paper corner that grows on hover */
+.page-curl::after {
+  content: "";
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  width: 0;
+  height: 0;
+  border-style: solid;
+  border-width: 0 0 22px 22px;
+  border-color: transparent transparent var(--paper) transparent;
+  filter: drop-shadow(-2px -2px 6px rgba(0, 0, 0, 0.4));
+  transition: border-width 0.35s cubic-bezier(0.2, 0.9, 0.3, 1.2);
+}
+.page-curl:hover::after {
+  border-width: 0 0 52px 52px;
+}
+@media (prefers-reduced-motion: reduce) {
+  .page-curl::after,
+  .page-curl:hover::after {
+    border-width: 0 0 22px 22px;
+    transition: none;
+  }
+}
+
+@keyframes blink {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.25;
+  }
+}
+
+@keyframes floaty {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-14px);
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .animate-blink {
+    animation: blink 1.8s ease-in-out infinite;
+  }
+  .animate-floaty {
+    animation: floaty 6s ease-in-out infinite;
+  }
 }
