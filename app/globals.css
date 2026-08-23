@@ -182,26 +182,20 @@
     0 8px 44px rgba(0, 0, 0, 0.38);
 }
 
-@keyframes scrollhint {
-  0% {
-    transform: scaleY(0);
-    transform-origin: top;
-    opacity: 0;
-  }
-  35% {
-    transform: scaleY(1);
-    transform-origin: top;
-    opacity: 1;
-  }
-  70% {
-    transform: scaleY(1);
-    transform-origin: bottom;
-    opacity: 1;
-  }
-  100% {
-    transform: scaleY(0);
-    transform-origin: bottom;
-    opacity: 0;
+/* Serif marketing: site header fades away while the cinematic hero is in view */
+[data-site-header] {
+  transition:
+    opacity 0.35s ease,
+    transform 0.35s ease;
+}
+[data-site-header].header-hidden {
+  opacity: 0;
+  pointer-events: none;
+  transform: translateY(-16px);
+}
+@media (prefers-reduced-motion: reduce) {
+  [data-site-header] {
+    transition: none;
   }
 }
 
@@ -256,9 +250,6 @@
   }
   .animate-floaty {
     animation: floaty 6s ease-in-out infinite;
-  }
-  .animate-scrollhint {
-    animation: scrollhint 2.2s cubic-bezier(0.45, 0, 0.35, 1) infinite;
   }
 }
 

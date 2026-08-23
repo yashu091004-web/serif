@@ -9,7 +9,6 @@ export interface StoryOverlayApi {
 }
 
 interface Chapter {
-  eyebrow: string;
   headline: string;
   support: string;
   cta?: boolean;
@@ -17,27 +16,22 @@ interface Chapter {
 
 const CHAPTERS: Chapter[] = [
   {
-    eyebrow: "Chapter 01",
     headline: "Every story starts somewhere.",
     support: "An idea is only the beginning.",
   },
   {
-    eyebrow: "Chapter 02",
     headline: "Turn ideas into stories.",
     support: "Shape thoughts into something worth reading.",
   },
   {
-    eyebrow: "Chapter 03",
     headline: "Shape your voice.",
     support: "Write, refine and build your perspective.",
   },
   {
-    eyebrow: "Chapter 04",
     headline: "Make your work discoverable.",
     support: "Create content designed to reach the right readers.",
   },
   {
-    eyebrow: "Chapter 05",
     headline: "Publish something worth reading.",
     support: "Serif gives your ideas a place to live.",
     cta: true,
@@ -121,16 +115,13 @@ export function StoryOverlay({
       <div className="relative grid w-full max-w-3xl px-6 pb-[13svh] text-center sm:px-8">
         {CHAPTERS.map((chapter, i) => (
           <div
-            key={chapter.eyebrow}
+            key={chapter.headline}
             ref={(el) => {
               itemRefs.current[i] = el;
             }}
             style={{ opacity: 0, transform: "translateY(24px)", visibility: "hidden" }}
             className="col-start-1 row-start-1 will-change-transform"
           >
-            <p className="cinematic-text font-mono text-[11px] tracking-[0.24em] text-gold uppercase">
-              {chapter.eyebrow}
-            </p>
             <h2 className="cinematic-text font-display mt-4 text-4xl leading-[1.04] font-bold tracking-tighter text-balance sm:text-6xl">
               {chapter.headline}
             </h2>

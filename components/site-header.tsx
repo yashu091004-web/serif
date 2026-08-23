@@ -36,7 +36,10 @@ export function SiteHeader({ isLoggedIn = false }: { isLoggedIn?: boolean }) {
   const pathname = usePathname();
 
   return (
-    <header className="sticky top-4 z-50 mx-auto mt-4 flex h-14 w-[min(920px,calc(100%-2rem))] items-center gap-8 rounded-full border border-border/70 bg-background/70 pl-5 pr-3 backdrop-blur-xl">
+    <header
+      data-site-header
+      className="sticky top-4 z-50 mx-auto mt-4 flex h-14 w-[min(920px,calc(100%-2rem))] items-center gap-8 rounded-full border border-border/70 bg-background/70 pl-5 pr-3 backdrop-blur-xl"
+    >
       <div className="mr-auto flex shrink-0 items-center">
         <Logo />
       </div>

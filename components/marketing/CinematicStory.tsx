@@ -9,7 +9,6 @@ import {
   type CinematicCanvasApi,
 } from "./CinematicCanvas";
 import { StoryOverlay, type StoryOverlayApi } from "./StoryOverlay";
-import { StoryProgress, type StoryProgressApi } from "./StoryProgress";
 
 function subscribeReducedMotion(callback: () => void) {
   const mq = window.matchMedia("(prefers-reduced-motion: reduce)");
@@ -26,21 +25,37 @@ const DAMPING = 7;
  * A 500vh scroll track keeps a full-viewport stage pinned via position:
  * sticky. One requestAnimationFrame loop converts scroll position into
  * normalized progress, maps it to a target frame, eases the displayed frame
- * toward that target and pushes updates to the canvas, chapter typography and
- * progress instrumentation through imperative refs — React state never sits in
+ * toward that target and pushes updates to the canvas and chapter typography
+ * through imperative refs — React state never sits in
  * the scroll path. Nothing autoplays: zero scroll means zero visual change.
  */
 export function CinematicStory() {
   const sectionRef = useRef<HTMLElement>(null);
   const canvasApi = useRef<CinematicCanvasApi | null>(null);
   const overlayApi = useRef<StoryOverlayApi | null>(null);
-  const progressApi = useRef<StoryProgressApi | null>(null);
 
   const prefersReducedMotion = useSyncExternalStore(
     subscribeReducedMotion,
     () => window.matchMedia("(prefers-reduced-motion: reduce)").matches,
     () => false
   );
+
+  useEffect(() => {
+    const header = document.querySelector("[data-site-header]");
+    if (!header) return;
+
+    const HIDE_AFTER_PX = 8;
+    const onScroll = () => {
+      header.classList.toggle("header-hidden", window.scrollY > HIDE_AFTER_PX);
+    };
+    onScroll();
+    window.addEventListener("scroll", onScroll, { passive: true });
+
+    return () => {
+      window.removeEventListener("scroll", onScroll);
+      header.classList.remove("header-hidden");
+    };
+  }, []);
 
   useEffect(() => {
     if (prefersReducedMotion) return;
@@ -77,7 +92,6 @@ export function CinematicStory() {
 
       canvasApi.current?.draw(currentFrame);
       overlayApi.current?.update(progress);
-      progressApi.current?.update(progress, currentFrame);
     };
 
     const observer = new IntersectionObserver(
@@ -91,7 +105,6 @@ export function CinematicStory() {
 
     const initialProgress = computeProgress();
     overlayApi.current?.update(initialProgress);
-    progressApi.current?.update(initialProgress, 1);
 
     const onResize = () => canvasApi.current?.resize();
     window.addEventListener("resize", onResize);
@@ -122,10 +135,7 @@ export function CinematicStory() {
             className="absolute inset-x-0 bottom-0 h-[60%] bg-gradient-to-t from-black/80 via-black/30 to-transparent"
           />
           <div className="relative px-6 pb-16 text-center sm:pb-20">
-            <p className="font-mono text-[11px] tracking-[0.24em] text-gold uppercase">
-              Chapter 01
-            </p>
-            <h2 className="font-display mt-4 text-4xl leading-[1.04] font-bold tracking-tighter text-balance sm:text-6xl">
+            <h2 className="font-display text-4xl leading-[1.04] font-bold tracking-tighter text-balance sm:text-6xl">
               Every story starts somewhere.
             </h2>
             <p className="mx-auto mt-4 max-w-md text-sm leading-relaxed text-paper/75 sm:text-base">
@@ -142,11 +152,8 @@ export function CinematicStory() {
 
         <div className="mx-auto max-w-xl space-y-12 px-6 py-24">
           {CHAPTER_SUMMARIES.map((chapter) => (
-            <div key={chapter.eyebrow}>
-              <p className="font-mono text-[11px] tracking-[0.24em] text-gold uppercase">
-                {chapter.eyebrow}
-              </p>
-              <h2 className="font-display mt-3 text-2xl font-bold tracking-tight sm:text-3xl">
+            <div key={chapter.headline}>
+              <h2 className="font-display text-2xl font-bold tracking-tight sm:text-3xl">
                 {chapter.headline}
               </h2>
               <p className="mt-2 text-sm leading-relaxed text-paper/65">
@@ -170,14 +177,7 @@ export function CinematicStory() {
       <div className="sticky top-0 h-svh overflow-hidden">
         <CinematicCanvas apiRef={canvasApi} />
 
-        {/* Faint top scrim so the floating navbar stays legible on bright frames */}
-        <div
-          aria-hidden
-          className="pointer-events-none absolute inset-x-0 top-0 z-[5] h-28 bg-gradient-to-b from-black/40 to-transparent"
-        />
-
         <StoryOverlay apiRef={overlayApi} />
-        <StoryProgress apiRef={progressApi} />
       </div>
     </section>
   );
@@ -185,22 +185,18 @@ export function CinematicStory() {
 
 const CHAPTER_SUMMARIES = [
   {
-    eyebrow: "Chapter 02",
     headline: "Turn ideas into stories.",
     support: "Shape thoughts into something worth reading.",
   },
   {
-    eyebrow: "Chapter 03",
     headline: "Shape your voice.",
     support: "Write, refine and build your perspective.",
   },
   {
-    eyebrow: "Chapter 04",
     headline: "Make your work discoverable.",
     support: "Create content designed to reach the right readers.",
   },
   {
-    eyebrow: "Chapter 05",
     headline: "Publish something worth reading.",
     support: "Serif gives your ideas a place to live.",
   },
