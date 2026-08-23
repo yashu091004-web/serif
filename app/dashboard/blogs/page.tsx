@@ -6,6 +6,7 @@ import { Pencil, Plus, Search, Trash2, ExternalLink } from "lucide-react";
 import { toast } from "sonner";
 import { createClient } from "@/lib/supabase/client";
 import { deletePost } from "@/lib/posts";
+import type { AuthorInfo } from "@/lib/profiles";
 import type { BlogPost } from "@/lib/types";
 import { usePosts } from "@/lib/use-posts";
 import { Badge } from "@/components/ui/badge";
@@ -29,6 +30,19 @@ import {
 } from "@/components/ui/dialog";
 
 type Tab = "all" | "drafts" | "published";
+
+/* Drafts are owner-private; ownership of everything else drives actions. */
+function isOwnDraft(post: BlogPost, userId: string | null): boolean {
+  return post.status === "draft" && post.userId === userId;
+}
+
+function isOwned(post: BlogPost, userId: string | null): boolean {
+  return post.userId === userId;
+}
+
+function authorName(post: BlogPost, authors: Map<string, AuthorInfo>): string {
+  return authors.get(post.userId)?.fullName?.trim() || "Serif Writer";
+}
 
 function statusBadge(status: BlogPost["status"]) {
   return status === "published" ? (
@@ -56,30 +70,39 @@ function sortPosts(posts: BlogPost[], sort: string): BlogPost[] {
 }
 
 export default function BlogsPage() {
-  const { posts, loading, refresh } = usePosts();
+  const { posts, userId, authors, loading, refresh } = usePosts();
   const [tab, setTab] = useState<Tab>("all");
   const [query, setQuery] = useState("");
   const [sort, setSort] = useState("newest");
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [pendingDelete, setPendingDelete] = useState<BlogPost | null>(null);
 
+  /* Drafts are private to their owner — only the current user's drafts
+     appear in the Drafts tab. Published posts from every author are visible. */
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
     return posts.filter((post) => {
-      if (tab === "drafts" && post.status !== "draft") return false;
+      if (tab === "drafts" && !isOwnDraft(post, userId)) return false;
       if (tab === "published" && post.status !== "published") return false;
-      if (q && !post.title.toLowerCase().includes(q)) return false;
+      if (q) {
+        const title = post.title.toLowerCase();
+        const author = (authors.get(post.userId)?.fullName ?? "").toLowerCase();
+        if (!title.includes(q) && !author.includes(q)) return false;
+      }
       return true;
     });
-  }, [posts, tab, query]);
+  }, [posts, tab, query, userId, authors]);
 
   const visible = sortPosts(filtered, sort);
 
-  const counts = {
-    all: posts.length,
-    drafts: posts.filter((p) => p.status === "draft").length,
-    published: posts.filter((p) => p.status === "published").length,
-  };
+  const counts = useMemo(
+    () => ({
+      all: posts.length,
+      drafts: posts.filter((post) => isOwnDraft(post, userId)).length,
+      published: posts.filter((post) => post.status === "published").length,
+    }),
+    [posts, userId]
+  );
 
   async function confirmDelete() {
     if (!pendingDelete || deletingId) return;
@@ -115,7 +138,8 @@ export default function BlogsPage() {
             Blogs
           </h1>
           <p className="mt-1 text-sm text-muted-foreground">
-            Manage, edit, and publish your posts.
+            Every published story from the community, plus your drafts. You can
+            edit only what you own.
           </p>
         </div>
         <Button render={<Link href="/dashboard/blogs/new" />} className="gap-1.5">
@@ -209,18 +233,29 @@ export default function BlogsPage() {
                     <div className="hidden size-9 shrink-0 rounded-lg bg-gradient-to-br from-primary/30 via-fuchsia-500/20 to-sky-500/20 sm:block" />
                   )}
                   <div className="min-w-0">
-                    <Link
-                      href={
-                        post.status === "published"
-                          ? `/blog/${post.slug}?from=/dashboard/blogs`
-                          : `/dashboard/blogs/${post.id}/edit`
-                      }
-                      className="block truncate text-sm font-medium transition-colors hover:text-primary"
-                    >
-                      {post.title}
-                    </Link>
+                    <div className="flex items-center gap-2">
+                      <Link
+                        href={
+                          post.status === "published"
+                            ? `/blog/${post.slug}?from=/dashboard/blogs`
+                            : `/dashboard/blogs/${post.id}/edit`
+                        }
+                        className="block truncate text-sm font-medium transition-colors hover:text-primary"
+                      >
+                        {post.title}
+                      </Link>
+                      {isOwned(post, userId) && (
+                        <Badge
+                          variant="outline"
+                          className="shrink-0 border-primary/30 text-primary"
+                        >
+                          Yours
+                        </Badge>
+                      )}
+                    </div>
                     <p className="truncate text-xs text-muted-foreground">
-                      {post.readTime} min read · /{post.slug}
+                      by {authorName(post, authors)} · {post.readTime} min read · /
+                      {post.slug}
                     </p>
                   </div>
                 </div>
@@ -243,25 +278,29 @@ export default function BlogsPage() {
                       <ExternalLink className="size-4" />
                     </Button>
                   )}
-                  <Button
-                    render={<Link href={`/dashboard/blogs/${post.id}/edit`} />}
-                    variant="ghost"
-                    size="icon-sm"
-                    aria-label="Edit post"
-                    className="size-9 sm:size-7"
-                  >
-                    <Pencil className="size-4" />
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="icon-sm"
-                    aria-label="Delete post"
-                    disabled={deletingId !== null}
-                    onClick={() => setPendingDelete(post)}
-                    className="size-9 sm:size-7"
-                  >
-                    <Trash2 className="size-4" />
-                  </Button>
+                  {isOwned(post, userId) && (
+                    <>
+                      <Button
+                        render={<Link href={`/dashboard/blogs/${post.id}/edit`} />}
+                        variant="ghost"
+                        size="icon-sm"
+                        aria-label="Edit post"
+                        className="size-9 sm:size-7"
+                      >
+                        <Pencil className="size-4" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon-sm"
+                        aria-label="Delete post"
+                        disabled={deletingId !== null}
+                        onClick={() => setPendingDelete(post)}
+                        className="size-9 sm:size-7"
+                      >
+                        <Trash2 className="size-4" />
+                      </Button>
+                    </>
+                  )}
                 </div>
               </li>
             ))}

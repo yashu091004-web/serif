@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { CircleCheck, LayoutDashboard } from "lucide-react";
-import { getStripe, isStripeConfigured } from "@/lib/stripe";
+import { reconcileCheckoutSession } from "@/lib/billing";
+import { isStripeConfigured } from "@/lib/stripe";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 
@@ -8,16 +9,14 @@ export const metadata = {
   title: "Welcome to Pro | Serif",
 };
 
-async function verifySession(
+// Verifies the payment and — as a safety net for environments where Stripe
+// webhooks cannot reach the app (e.g., localhost without `stripe listen`) —
+// applies the subscription sync directly. Idempotent.
+async function confirmSession(
   sessionId: string | undefined
 ): Promise<boolean> {
   if (!sessionId || !isStripeConfigured()) return false;
-  try {
-    const session = await getStripe().checkout.sessions.retrieve(sessionId);
-    return session.payment_status === "paid";
-  } catch {
-    return false;
-  }
+  return (await reconcileCheckoutSession(sessionId)) === "synced";
 }
 
 export default async function SuccessPage({
@@ -26,7 +25,7 @@ export default async function SuccessPage({
   searchParams: Promise<{ session_id?: string }>;
 }) {
   const { session_id } = await searchParams;
-  const paid = await verifySession(session_id);
+  const paid = await confirmSession(session_id);
 
   return (
     <div className="animate-in fade-in slide-in-from-bottom-3 mx-auto flex max-w-2xl flex-col items-center px-4 py-24 text-center duration-700 ease-out [animation-fill-mode:both] motion-reduce:animate-none sm:py-28">

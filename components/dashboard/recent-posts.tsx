@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { Pencil, Trash2, ExternalLink } from "lucide-react";
 import { toast } from "sonner";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { deletePost } from "@/lib/posts";
 import type { BlogPost } from "@/lib/types";
@@ -24,11 +24,18 @@ function formatDate(iso: string | null): string {
 }
 
 export function RecentPosts() {
-  const { posts, loading, refresh } = usePosts();
+  const { posts, userId, loading, refresh } = usePosts();
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [pendingDelete, setPendingDelete] = useState<BlogPost | null>(null);
 
-  const recent = posts.slice(0, 5);
+  /* Dashboard home is personal: only the signed-in user's own posts here,
+     even though usePosts() loads everything they can see. */
+  const ownPosts = useMemo(
+    () => posts.filter((post) => post.userId === userId),
+    [posts, userId]
+  );
+
+  const recent = ownPosts.slice(0, 5);
 
   async function confirmDelete() {
     if (!pendingDelete || deletingId) return;

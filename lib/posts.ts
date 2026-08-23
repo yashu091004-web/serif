@@ -59,6 +59,21 @@ export async function listOwnPosts(db: Db, userId: string): Promise<BlogPost[]> 
   return ((data ?? []) as PostRow[]).map(mapPost);
 }
 
+/**
+ * Everything the signed-in user is allowed to see: every published post
+ * (any author) plus the caller's own drafts. Deliberately applies no
+ * user_id filter — visibility is enforced by the posts RLS policy
+ * (posts_select_published_or_own), while ownership stays a separate concern.
+ */
+export async function listVisiblePosts(db: Db): Promise<BlogPost[]> {
+  const { data, error } = await db
+    .from("posts")
+    .select(SELECT_COLUMNS)
+    .order("updated_at", { ascending: false });
+  assertNoError(error);
+  return ((data ?? []) as PostRow[]).map(mapPost);
+}
+
 export async function listPublishedPosts(db: Db): Promise<BlogPost[]> {
   const { data, error } = await db
     .from("posts")
