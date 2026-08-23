@@ -34,7 +34,16 @@ export function RecentPosts() {
     if (!pendingDelete || deletingId) return;
     setDeletingId(pendingDelete.id);
     try {
-      await deletePost(createClient(), pendingDelete.id);
+      const supabase = createClient();
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+      if (!user) throw new Error("You need to be signed in.");
+      const deleted = await deletePost(supabase, pendingDelete.id, user.id);
+      if (!deleted) {
+        toast.error("You can only delete your own posts.");
+        return;
+      }
       toast.success(`"${pendingDelete.title}" deleted`);
       setPendingDelete(null);
       await refresh();

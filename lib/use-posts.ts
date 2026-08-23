@@ -11,7 +11,15 @@ export function usePosts() {
 
   const refresh = useCallback(async () => {
     try {
-      const rows = await listOwnPosts(createClient());
+      const supabase = createClient();
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+      if (!user) {
+        setPosts([]);
+        return;
+      }
+      const rows = await listOwnPosts(supabase, user.id);
       setPosts(rows);
     } catch {
       setPosts([]);
@@ -22,16 +30,24 @@ export function usePosts() {
 
   useEffect(() => {
     let cancelled = false;
-    listOwnPosts(createClient())
-      .then((rows) => {
+    (async () => {
+      try {
+        const supabase = createClient();
+        const {
+          data: { user },
+        } = await supabase.auth.getUser();
+        if (!user || cancelled) {
+          if (!cancelled) setPosts([]);
+          return;
+        }
+        const rows = await listOwnPosts(supabase, user.id);
         if (!cancelled) setPosts(rows);
-      })
-      .catch(() => {
+      } catch {
         if (!cancelled) setPosts([]);
-      })
-      .finally(() => {
+      } finally {
         if (!cancelled) setLoading(false);
-      });
+      }
+    })();
     return () => {
       cancelled = true;
     };

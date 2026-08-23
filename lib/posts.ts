@@ -49,10 +49,11 @@ export interface PostInput {
 
 const SELECT_COLUMNS = "*";
 
-export async function listOwnPosts(db: Db): Promise<BlogPost[]> {
+export async function listOwnPosts(db: Db, userId: string): Promise<BlogPost[]> {
   const { data, error } = await db
     .from("posts")
     .select(SELECT_COLUMNS)
+    .eq("user_id", userId)
     .order("updated_at", { ascending: false });
   assertNoError(error);
   return ((data ?? []) as PostRow[]).map(mapPost);
@@ -130,6 +131,7 @@ export async function createPost(
 export async function updatePost(
   db: Db,
   id: string,
+  userId: string,
   input: PostInput,
   status: PostStatus
 ): Promise<BlogPost> {
@@ -143,15 +145,26 @@ export async function updatePost(
       status,
     })
     .eq("id", id)
+    .eq("user_id", userId)
     .select(SELECT_COLUMNS)
     .single();
   assertNoError(error);
   return mapPost(data as PostRow);
 }
 
-export async function deletePost(db: Db, id: string): Promise<void> {
-  const { error } = await db.from("posts").delete().eq("id", id);
+export async function deletePost(
+  db: Db,
+  id: string,
+  userId: string
+): Promise<boolean> {
+  const { data, error } = await db
+    .from("posts")
+    .delete()
+    .eq("id", id)
+    .eq("user_id", userId)
+    .select("id");
   assertNoError(error);
+  return (data?.length ?? 0) > 0;
 }
 
 export async function uploadPostImage(

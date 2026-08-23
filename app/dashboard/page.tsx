@@ -36,8 +36,11 @@ export default async function DashboardPage() {
     if (profile?.full_name?.trim()) name = profile.full_name.trim();
   } catch {}
 
-  async function countByStatus(status?: PostStatus): Promise<number> {
-    let query = supabase.from("posts").select("id", { count: "exact", head: true });
+  const countByStatus = async (status?: PostStatus): Promise<number> => {
+    let query = supabase
+      .from("posts")
+      .select("id", { count: "exact", head: true })
+      .eq("user_id", user.id);
     if (status) query = query.eq("status", status);
     const { count, error } = await query;
     if (error) return 0;

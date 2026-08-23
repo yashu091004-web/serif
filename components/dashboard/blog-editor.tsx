@@ -93,7 +93,7 @@ export function BlogEditor({ post, initial, heading }: BlogEditorProps) {
         imageUrl: imageUrl || null,
       };
       if (post) {
-        await updatePost(supabase, post.id, input, status);
+        await updatePost(supabase, post.id, user.id, input, status);
       } else {
         await createPost(supabase, user.id, input, status);
       }
