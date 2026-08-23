@@ -228,3 +228,10 @@
     animation: floaty 6s ease-in-out infinite;
   }
 }
+
+/* Keep toasts clear of the mobile home-indicator / gesture bar */
+@media (max-width: 639px) {
+  [data-sonner-toaster] {
+    margin-bottom: max(0.5rem, env(safe-area-inset-bottom)) !important;
+  }
+}

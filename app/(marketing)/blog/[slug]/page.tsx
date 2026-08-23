@@ -176,7 +176,7 @@ export default async function BlogPostPage({
           className={buttonVariants({
             size: "lg",
             className:
-              "animate-in fade-in slide-in-from-bottom-4 fixed right-5 bottom-5 z-50 gap-1.5 shadow-lg duration-500 ease-out motion-reduce:animate-none sm:right-8 sm:bottom-8",
+              "animate-in fade-in slide-in-from-bottom-4 fixed right-5 z-50 gap-1.5 shadow-lg duration-500 ease-out motion-reduce:animate-none sm:right-8 [bottom:calc(env(safe-area-inset-bottom)+1.25rem)] sm:[bottom:calc(env(safe-area-inset-bottom)+2rem)]",
           })}
         >
           <Pencil className="size-4" />

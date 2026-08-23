@@ -229,6 +229,7 @@ export default function BlogsPage() {
                       variant="ghost"
                       size="icon-sm"
                       aria-label="View post"
+                      className="size-9 sm:size-7"
                     >
                       <ExternalLink className="size-4" />
                     </Button>
@@ -238,6 +239,7 @@ export default function BlogsPage() {
                     variant="ghost"
                     size="icon-sm"
                     aria-label="Edit post"
+                    className="size-9 sm:size-7"
                   >
                     <Pencil className="size-4" />
                   </Button>
@@ -247,6 +249,7 @@ export default function BlogsPage() {
                     aria-label="Delete post"
                     disabled={deletingId !== null}
                     onClick={() => setPendingDelete(post)}
+                    className="size-9 sm:size-7"
                   >
                     <Trash2 className="size-4" />
                   </Button>

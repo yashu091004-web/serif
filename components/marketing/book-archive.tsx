@@ -48,11 +48,8 @@ export function BookArchive({ posts }: { posts: ArchivePost[] }) {
   const coverRef = useRef<HTMLDivElement>(null);
   const bookRef = useRef<HTMLDivElement>(null);
   const ringRef = useRef<HTMLDivElement>(null);
-  const listRef = useRef<HTMLDivElement>(null);
   const fillRef = useRef<HTMLDivElement>(null);
 
-  const desktopRef = useRef(true);
-  const metricsRef = useRef({ top: 0, height: 1 });
   const tickingRef = useRef(false);
   const frontIndexRef = useRef<number | null>(null);
   const swapTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -62,23 +59,16 @@ export function BookArchive({ posts }: { posts: ArchivePost[] }) {
     if (!scene || items.length === 0) return;
     if (prefersReducedMotion) return;
 
-    const desktopMq = window.matchMedia("(min-width: 768px)");
-    desktopRef.current = desktopMq.matches;
-
     const N = items.length;
     const angleStep = 360 / N;
-    const radius = 340;
 
     const clamp = (v: number, a: number, b: number) =>
       Math.max(a, Math.min(b, v));
     const lerp = (a: number, b: number, t: number) => a + (b - a) * t;
 
-    const measure = () => {
-      const rect = scene.getBoundingClientRect();
-      metricsRef.current = {
-        top: window.scrollY + rect.top,
-        height: scene.offsetHeight,
-      };
+    const getRadius = () => {
+      const vw = window.innerWidth;
+      return vw >= 768 ? 340 : Math.min(340, Math.round(vw * 0.55));
     };
 
     const setCopyFor = (index: number | null) => {
@@ -100,10 +90,9 @@ export function BookArchive({ posts }: { posts: ArchivePost[] }) {
 
     const update = () => {
       tickingRef.current = false;
-      const { top, height } = metricsRef.current;
-      const raw =
-        (window.scrollY - top) / Math.max(height - window.innerHeight, 1);
-      const progress = clamp(raw, 0, 1);
+      const rect = scene.getBoundingClientRect();
+      const total = Math.max(rect.height - window.innerHeight, 1);
+      const progress = clamp(-rect.top / total, 0, 1);
 
       if (fillRef.current) {
         fillRef.current.style.width = `${(progress * 100).toFixed(1)}%`;
@@ -126,8 +115,8 @@ export function BookArchive({ posts }: { posts: ArchivePost[] }) {
 
       let frontIndex: number | null = null;
 
-      if (desktopRef.current && ringRef.current) {
-        const currentRadius = lerp(0, radius, popT);
+      if (ringRef.current) {
+        const currentRadius = lerp(0, getRadius(), popT);
         ringRef.current.classList.toggle("opacity-0", popT <= 0.02);
         ringRef.current.style.pointerEvents = popT > 0.02 ? "auto" : "none";
 
@@ -155,27 +144,6 @@ export function BookArchive({ posts }: { posts: ArchivePost[] }) {
           }
           frontIndex = bestI;
         }
-      } else if (listRef.current) {
-        listRef.current.style.opacity = popT > 0.02 ? "1" : "0";
-        listRef.current.style.pointerEvents = popT > 0.02 ? "auto" : "none";
-
-        let mobileFront: number | null = null;
-        if (popT > 0.05) {
-          const spinT = clamp((progress - 0.3) / 0.7, 0, 1);
-          mobileFront = clamp(Math.floor(spinT * N), 0, N - 1);
-        }
-
-        const cards =
-          listRef.current.querySelectorAll<HTMLElement>("[data-archive-card]");
-        cards.forEach((el, i) => {
-          const reveal = clamp((popT * 1.6 - i * 0.12) / 0.55, 0, 1);
-          el.style.opacity = String(reveal);
-          el.style.transform = `translateY(${(1 - reveal) * 28}px)`;
-          el.style.borderColor =
-            i === mobileFront ? "var(--gold)" : "transparent";
-        });
-
-        frontIndex = mobileFront;
       }
 
       if (popT <= 0.05) {
@@ -196,25 +164,14 @@ export function BookArchive({ posts }: { posts: ArchivePost[] }) {
       }
     };
 
-    const onResize = () => {
-      desktopRef.current = desktopMq.matches;
-      measure();
-      requestUpdate();
-    };
-
-    const onMqChange = () => onResize();
-
-    measure();
     update();
 
     window.addEventListener("scroll", requestUpdate, { passive: true });
-    window.addEventListener("resize", onResize);
-    desktopMq.addEventListener("change", onMqChange);
+    window.addEventListener("resize", requestUpdate);
 
     return () => {
       window.removeEventListener("scroll", requestUpdate);
-      window.removeEventListener("resize", onResize);
-      desktopMq.removeEventListener("change", onMqChange);
+      window.removeEventListener("resize", requestUpdate);
       if (swapTimerRef.current) clearTimeout(swapTimerRef.current);
     };
   }, [items, prefersReducedMotion]);
@@ -254,7 +211,7 @@ export function BookArchive({ posts }: { posts: ArchivePost[] }) {
       ref={sceneRef}
       aria-label="Post archive"
       className={`relative z-[1] bg-ink text-paper ${
-        prefersReducedMotion ? "py-20 sm:py-28" : "h-[420vh]"
+        prefersReducedMotion ? "py-20 sm:py-28" : "h-[300vh] md:h-[420vh]"
       }`}
     >
       {prefersReducedMotion ? (
@@ -316,7 +273,7 @@ export function BookArchive({ posts }: { posts: ArchivePost[] }) {
 
             <div
               ref={ringRef}
-              className="absolute hidden h-[280px] w-[210px] opacity-0 md:block [transform-style:preserve-3d]"
+              className="absolute h-[280px] w-[210px] opacity-0 max-sm:h-[226px] max-sm:w-[170px] [transform-style:preserve-3d]"
             >
               {items.map((post, i) =>
                 post.slug ? (
@@ -333,32 +290,6 @@ export function BookArchive({ posts }: { posts: ArchivePost[] }) {
                     key={`${post.title}-${i}`}
                     data-archive-card
                     className={`${cardBaseClass} absolute inset-0 border-2 border-transparent [backface-visibility:hidden]`}
-                  >
-                    {renderCardBody(post)}
-                  </div>
-                )
-              )}
-            </div>
-
-            <div
-              ref={listRef}
-              className="absolute flex w-[min(340px,86vw)] flex-col gap-3 opacity-0 md:hidden"
-            >
-              {items.map((post, i) =>
-                post.slug ? (
-                  <Link
-                    key={post.slug}
-                    href={`/blog/${post.slug}`}
-                    data-archive-card
-                    className={`${cardBaseClass} h-[92px] shrink-0 border-2 border-transparent`}
-                  >
-                    {renderCardBody(post)}
-                  </Link>
-                ) : (
-                  <div
-                    key={`${post.title}-${i}`}
-                    data-archive-card
-                    className={`${cardBaseClass} h-[92px] shrink-0 border-2 border-transparent`}
                   >
                     {renderCardBody(post)}
                   </div>

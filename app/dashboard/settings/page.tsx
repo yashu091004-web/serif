@@ -206,7 +206,7 @@ export default function SettingsPage() {
         title="Profile"
         description="How you appear to readers."
       >
-        <div className="flex items-start gap-4">
+        <div className="flex flex-col items-center gap-4 sm:flex-row sm:items-start">
           <div className="flex flex-col items-center gap-2">
             <Avatar className="size-16">
               {avatarUrl && <AvatarImage src={avatarUrl} alt={name} />}

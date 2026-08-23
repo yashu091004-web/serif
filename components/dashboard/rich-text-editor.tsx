@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useSyncExternalStore } from "react";
 import { EditorContent, useEditor } from "@tiptap/react";
 import { BubbleMenu } from "@tiptap/react/menus";
 import StarterKit from "@tiptap/starter-kit";
@@ -22,6 +22,20 @@ import { Input } from "@/components/ui/input";
 const bubbleButtonClass =
   "inline-flex size-7 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground data-[active=true]:bg-primary/10 data-[active=true]:text-primary";
 
+const mobileButtonClass = cn(bubbleButtonClass, "size-8");
+
+function useIsDesktop() {
+  return useSyncExternalStore(
+    (callback) => {
+      const mq = window.matchMedia("(min-width: 768px)");
+      mq.addEventListener("change", callback);
+      return () => mq.removeEventListener("change", callback);
+    },
+    () => window.matchMedia("(min-width: 768px)").matches,
+    () => true
+  );
+}
+
 interface RichTextEditorProps {
   initialContent: string;
   onChange: (html: string) => void;
@@ -30,6 +44,7 @@ interface RichTextEditorProps {
 export function RichTextEditor({ initialContent, onChange }: RichTextEditorProps) {
   const [linkMode, setLinkMode] = useState(false);
   const [linkUrl, setLinkUrl] = useState("");
+  const isDesktop = useIsDesktop();
 
   const editor = useEditor({
     extensions: [StarterKit],
@@ -70,117 +85,126 @@ export function RichTextEditor({ initialContent, onChange }: RichTextEditorProps
     setLinkUrl("");
   }
 
+  const buttonClass = isDesktop ? bubbleButtonClass : mobileButtonClass;
+
+  const controls = linkMode ? (
+    <>
+      <Input
+        value={linkUrl}
+        onChange={(e) => setLinkUrl(e.target.value)}
+        onKeyDown={(e) => {
+          if (e.key === "Enter") {
+            e.preventDefault();
+            applyLink();
+          }
+        }}
+        placeholder="https://example.com"
+        className="h-7 w-48 text-xs sm:w-60"
+        autoFocus
+      />
+      <Button type="button" size="xs" onClick={applyLink}>
+        Save
+      </Button>
+      <button
+        type="button"
+        onClick={removeLink}
+        aria-label="Remove link"
+        className={buttonClass}
+      >
+        <Link2Off className="size-3.5" />
+      </button>
+    </>
+  ) : (
+    <>
+      <button
+        type="button"
+        aria-label="Bold"
+        data-active={editor?.isActive("bold")}
+        className={buttonClass}
+        onClick={() => editor?.chain().focus().toggleBold().run()}
+      >
+        <Bold className="size-3.5" />
+      </button>
+      <button
+        type="button"
+        aria-label="Italic"
+        data-active={editor?.isActive("italic")}
+        className={buttonClass}
+        onClick={() => editor?.chain().focus().toggleItalic().run()}
+      >
+        <Italic className="size-3.5" />
+      </button>
+      <span className="mx-0.5 h-4 w-px bg-border" aria-hidden />
+      {[1, 2, 3].map((level) => (
+        <button
+          key={level}
+          type="button"
+          aria-label={`Heading ${level}`}
+          data-active={editor?.isActive("heading", { level })}
+          className={buttonClass}
+          onClick={() =>
+            editor
+              ?.chain()
+              .focus()
+              .toggleHeading({ level: level as 1 | 2 | 3 })
+              .run()
+          }
+        >
+          {level === 1 ? (
+            <Heading1 className="size-3.5" />
+          ) : level === 2 ? (
+            <Heading2 className="size-3.5" />
+          ) : (
+            <Heading3 className="size-3.5" />
+          )}
+        </button>
+      ))}
+      <span className="mx-0.5 h-4 w-px bg-border" aria-hidden />
+      <button
+        type="button"
+        aria-label="Bullet list"
+        data-active={editor?.isActive("bulletList")}
+        className={buttonClass}
+        onClick={() => editor?.chain().focus().toggleBulletList().run()}
+      >
+        <List className="size-3.5" />
+      </button>
+      <button
+        type="button"
+        aria-label="Numbered list"
+        data-active={editor?.isActive("orderedList")}
+        className={buttonClass}
+        onClick={() => editor?.chain().focus().toggleOrderedList().run()}
+      >
+        <ListOrdered className="size-3.5" />
+      </button>
+      <span className="mx-0.5 h-4 w-px bg-border" aria-hidden />
+      <button
+        type="button"
+        aria-label="Add or edit link"
+        data-active={editor?.isActive("link")}
+        className={buttonClass}
+        onClick={openLinkEditor}
+      >
+        <Link2 className="size-3.5" />
+      </button>
+    </>
+  );
+
   return (
     <div className="overflow-hidden rounded-lg border border-border bg-background">
-      {editor && (
+      {!isDesktop && editor && (
+        <div className="flex flex-wrap items-center gap-0.5 border-b border-border bg-muted/30 p-1">
+          {controls}
+        </div>
+      )}
+      {editor && isDesktop && (
         <BubbleMenu
           editor={editor}
           options={{ placement: "top", offset: 12 }}
         >
           <div className="flex items-center gap-0.5 rounded-lg border border-border bg-popover p-1 shadow-lg">
-            {linkMode ? (
-              <>
-                <Input
-                  value={linkUrl}
-                  onChange={(e) => setLinkUrl(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter") {
-                      e.preventDefault();
-                      applyLink();
-                    }
-                  }}
-                  placeholder="https://example.com"
-                  className="h-7 w-48 text-xs sm:w-60"
-                  autoFocus
-                />
-                <Button type="button" size="xs" onClick={applyLink}>
-                  Save
-                </Button>
-                <button
-                  type="button"
-                  onClick={removeLink}
-                  aria-label="Remove link"
-                  className={bubbleButtonClass}
-                >
-                  <Link2Off className="size-3.5" />
-                </button>
-              </>
-            ) : (
-              <>
-                <button
-                  type="button"
-                  aria-label="Bold"
-                  data-active={editor.isActive("bold")}
-                  className={bubbleButtonClass}
-                  onClick={() => editor.chain().focus().toggleBold().run()}
-                >
-                  <Bold className="size-3.5" />
-                </button>
-                <button
-                  type="button"
-                  aria-label="Italic"
-                  data-active={editor.isActive("italic")}
-                  className={bubbleButtonClass}
-                  onClick={() => editor.chain().focus().toggleItalic().run()}
-                >
-                  <Italic className="size-3.5" />
-                </button>
-                <span className="mx-0.5 h-4 w-px bg-border" aria-hidden />
-                {[1, 2, 3].map((level) => (
-                  <button
-                    key={level}
-                    type="button"
-                    aria-label={`Heading ${level}`}
-                    data-active={editor.isActive("heading", { level })}
-                    className={bubbleButtonClass}
-                    onClick={() =>
-                      editor
-                        .chain()
-                        .focus()
-                        .toggleHeading({ level: level as 1 | 2 | 3 })
-                        .run()
-                    }
-                  >
-                    {level === 1 ? (
-                      <Heading1 className="size-3.5" />
-                    ) : level === 2 ? (
-                      <Heading2 className="size-3.5" />
-                    ) : (
-                      <Heading3 className="size-3.5" />
-                    )}
-                  </button>
-                ))}
-                <span className="mx-0.5 h-4 w-px bg-border" aria-hidden />
-                <button
-                  type="button"
-                  aria-label="Bullet list"
-                  data-active={editor.isActive("bulletList")}
-                  className={bubbleButtonClass}
-                  onClick={() => editor.chain().focus().toggleBulletList().run()}
-                >
-                  <List className="size-3.5" />
-                </button>
-                <button
-                  type="button"
-                  aria-label="Numbered list"
-                  data-active={editor.isActive("orderedList")}
-                  className={bubbleButtonClass}
-                  onClick={() => editor.chain().focus().toggleOrderedList().run()}
-                >
-                  <ListOrdered className="size-3.5" />
-                </button>
-                <span className="mx-0.5 h-4 w-px bg-border" aria-hidden />
-                <button
-                  type="button"
-                  aria-label="Add or edit link"
-                  data-active={editor.isActive("link")}
-                  className={bubbleButtonClass}
-                  onClick={openLinkEditor}
-                >
-                  <Link2 className="size-3.5" />
-                </button>
-              </>
-            )}
+            {controls}
           </div>
         </BubbleMenu>
       )}

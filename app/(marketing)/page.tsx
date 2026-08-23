@@ -355,16 +355,16 @@ async function LandingContent() {
         </section>
 
         {/* Closing CTA */}
-        <section className="px-6 pt-4 pb-32 text-center">
+        <section className="px-6 pt-4 pb-20 text-center sm:pb-32">
           <Reveal>
-            <h2 className="font-display text-5xl leading-[0.98] font-bold tracking-tighter sm:text-7xl lg:text-8xl">
+            <h2 className="font-display text-5xl leading-[0.98] font-bold tracking-tighter sm:text-6xl lg:text-8xl">
               Start your
               <br />
               <span className="font-medium text-ink-soft">next</span> post.
             </h2>
             <Link
               href="/signup"
-              className="font-display mt-11 inline-block rounded-full bg-ink px-11 py-5 text-lg font-bold text-paper transition-transform duration-300 hover:-translate-y-1 hover:scale-[1.02] hover:shadow-[0_20px_50px_rgba(10,10,10,0.25)] motion-reduce:transition-none motion-reduce:hover:translate-y-0 motion-reduce:hover:scale-100"
+              className="font-display mt-8 inline-block rounded-full bg-ink px-8 py-4 text-base font-bold text-paper transition-transform duration-300 hover:-translate-y-1 hover:scale-[1.02] hover:shadow-[0_20px_50px_rgba(10,10,10,0.25)] motion-reduce:transition-none motion-reduce:hover:translate-y-0 motion-reduce:hover:scale-100 sm:mt-11 sm:px-11 sm:py-5 sm:text-lg"
             >
               Start writing — it&apos;s free
             </Link>
