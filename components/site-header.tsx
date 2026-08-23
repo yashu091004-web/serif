@@ -16,8 +16,8 @@ import { cn } from "@/lib/utils";
 
 const navLinks = [
   { href: "/#features", label: "Features" },
-  { href: "/pricing", label: "Pricing" },
   { href: "/blog", label: "Blog" },
+  { href: "/pricing", label: "Pricing" },
 ];
 
 function isActive(pathname: string, href: string) {
@@ -79,7 +79,7 @@ export function SiteHeader({ isLoggedIn = false }: { isLoggedIn?: boolean }) {
             Log in
           </Link>
           <Link href="/signup" className={solidPill}>
-            Sign up
+            Get Started
           </Link>
         </div>
       )}
@@ -130,7 +130,7 @@ export function SiteHeader({ isLoggedIn = false }: { isLoggedIn?: boolean }) {
                       Log in
                     </Link>
                     <Link href="/signup" className={buttonVariants()}>
-                      Sign up
+                      Get Started
                     </Link>
                   </div>
                 </>

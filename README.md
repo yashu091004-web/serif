@@ -1,36 +1,78 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Serif
 
-## Getting Started
+Serif is a writing platform for creating, editing, publishing, and sharing blog posts. It includes Supabase authentication and storage, a rich-text editor, optional Groq-powered post generation, Stripe Pro subscriptions, and newsletter signup through Loops.
 
-First, run the development server:
+## Requirements
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+- Node.js 20 or newer
+- pnpm
+- A Supabase project
+- Stripe test-mode credentials for local billing flows
+- Groq and Loops credentials for those integrations
+
+## Local setup
+
+Install dependencies and create a local environment file:
+
+```powershell
+pnpm install
+Copy-Item .env.example .env.local
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Fill in `.env.local` using the variable names in `.env.example`. Keep this file local; it is ignored by git. `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` are browser-safe values. All other provider credentials must remain server-only.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+Apply the SQL migrations in `supabase/migrations` to the intended Supabase project. Confirm the authentication redirect URL includes `http://localhost:3000/auth/callback`.
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+Start the development server:
 
-## Learn More
+```bash
+pnpm dev
+```
 
-To learn more about Next.js, take a look at the following resources:
+Open [http://localhost:3000](http://localhost:3000).
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Product routes
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+- `/` — marketing homepage
+- `/blog` and `/blog/[slug]` — public posts
+- `/pricing` — Pro subscription checkout
+- `/login`, `/signup`, `/reset-password` — authentication
+- `/dashboard` — account overview
+- `/dashboard/blogs` — manage posts
+- `/dashboard/blogs/new/manual` — write a post manually
+- `/dashboard/blogs/new/ai` — generate a post with Groq (Pro only)
+- `/dashboard/settings` — account settings
 
-## Deploy on Vercel
+## Stripe local webhooks
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+Install and authenticate the Stripe CLI, then forward events while the app is running:
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+```bash
+stripe listen --forward-to http://localhost:3000/api/stripe/webhook
+```
+
+Copy the signing secret printed by the CLI into `STRIPE_WEBHOOK_SECRET`. Use Stripe test mode locally and verify checkout, subscription, cancellation, and duplicate webhook delivery paths before deploying.
+
+## Checks
+
+```bash
+pnpm lint
+pnpm build
+pnpm start
+```
+
+The project currently has no automated test suite. Integration checks should use a disposable or staging Supabase project and Stripe test-mode credentials. Never use production secrets for local testing.
+
+## Deployment checklist
+
+1. Rotate any credential that has been shared, committed, logged, or exposed.
+2. Configure all variables from `.env.example` in the deployment provider.
+3. Use the production Supabase URL, redirect URLs, and RLS policies.
+4. Use the correct Stripe mode and price ID for the deployment environment.
+5. Register the production Stripe webhook endpoint and store its signing secret.
+6. Confirm provider quotas, error monitoring, backups, and rollback procedures.
+7. Run auth, post CRUD, public blog, AI entitlement, checkout, webhook, and newsletter smoke checks.
+
+## Security notes
+
+Do not commit `.env.local`, service-role keys, Stripe secret keys, webhook signing secrets, Groq keys, or Loops keys. If a credential is exposed, revoke it in the provider dashboard before continuing development and replace it in every environment that used it.

@@ -87,10 +87,8 @@ export async function POST(request: Request) {
     return NextResponse.json({ url: session.url });
   } catch (error) {
     console.error("Stripe checkout failed:", error);
-    const detail =
-      error instanceof Error ? error.message : "Unexpected error.";
     return NextResponse.json(
-      { error: "Checkout failed. Try again shortly.", detail },
+      { error: "Checkout failed. Try again shortly." },
       { status: 502 }
     );
   }

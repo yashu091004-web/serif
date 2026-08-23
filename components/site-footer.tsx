@@ -29,7 +29,7 @@ export function SiteFooter() {
             href="/signup"
             className="transition-colors hover:text-foreground"
           >
-            Get started
+            Get Started
           </Link>
         </nav>
       </div>
