@@ -21,6 +21,11 @@ const PREFETCH_AHEAD_DESKTOP = 24;
 const PREFETCH_AHEAD_MOBILE = 12;
 const WINDOW_ANCHOR_STEP = 10;
 
+/* Mobile data budget: small screens load every Nth frame (~half the bytes)
+   and scrubbing snaps to the nearest loaded frame. */
+const MOBILE_FRAME_STRIDE = 2;
+const MOBILE_DPR_CAP = 1.5;
+
 /* Motion-blur shaping: engages above ~40 fps-equivalent scrub velocity. */
 const BLUR_ENGAGE = 40;
 const BLUR_RELEASE = 20;
@@ -69,6 +74,17 @@ function setupCinematicCanvas(
     ? PREFETCH_AHEAD_MOBILE
     : PREFETCH_AHEAD_DESKTOP;
   const concurrencyLimit = isSmallScreen ? 4 : 6;
+
+  const frameStride = isSmallScreen ? MOBILE_FRAME_STRIDE : 1;
+  /* Highest frame index that exists on the stride grid (300 on desktop, 299 on mobile). */
+  const topLoaded = FRAME_COUNT - ((FRAME_COUNT - 1) % frameStride);
+
+  function snapToStride(frame: number) {
+    return Math.min(
+      Math.max(Math.round((frame - 1) / frameStride) * frameStride + 1, 1),
+      topLoaded
+    );
+  }
 
   /* ---- Frame cache & priority loader --------------------------------- */
 
@@ -119,12 +135,13 @@ function setupCinematicCanvas(
      whole timeline so early scrubbing always has neighbours. The remainder
      fills sequentially as background work. */
   request([1], true);
+  const spreadStep = SPREAD_STEP * frameStride;
   const spread: number[] = [];
-  for (let n = SPREAD_STEP; n < FRAME_COUNT; n += SPREAD_STEP) spread.push(n);
-  spread.push(FRAME_COUNT);
+  for (let n = spreadStep; n < FRAME_COUNT; n += spreadStep) spread.push(n);
+  spread.push(topLoaded);
   request(spread, true);
   const rest: number[] = [];
-  for (let n = 2; n < FRAME_COUNT; n++) rest.push(n);
+  for (let n = 1 + frameStride; n < FRAME_COUNT; n += frameStride) rest.push(n);
   request(rest, false);
 
   /* ---- Cover-fit painting with sub-frame blend ------------------------ */
@@ -136,7 +153,10 @@ function setupCinematicCanvas(
 
   function applySize() {
     const rect = canvas.getBoundingClientRect();
-    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    const dpr = Math.min(
+      window.devicePixelRatio || 1,
+      isSmallScreen ? MOBILE_DPR_CAP : 2
+    );
     cssW = Math.max(1, Math.round(rect.width));
     cssH = Math.max(1, Math.round(rect.height));
     const pxW = Math.round(cssW * dpr);
@@ -219,7 +239,7 @@ function setupCinematicCanvas(
     const from = Math.max(1, center - PREFETCH_BACK);
     const to = Math.min(FRAME_COUNT, center + prefetchAhead);
     const window: number[] = [];
-    for (let n = from; n <= to; n++) window.push(n);
+    for (let n = snapToStride(from); n <= to; n += frameStride) window.push(n);
     request(window, true);
   }
 
@@ -227,7 +247,7 @@ function setupCinematicCanvas(
 
   apiRef.current = {
     draw(frame: number) {
-      requestedFrame = Math.min(Math.max(frame, 1), FRAME_COUNT);
+      requestedFrame = snapToStride(frame);
       prefetchAround(requestedFrame);
       updateBlur(performance.now(), requestedFrame);
       const key = `${requestedFrame.toFixed(3)}@${cssW}x${cssH}`;

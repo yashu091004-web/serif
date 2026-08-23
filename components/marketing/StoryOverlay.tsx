@@ -105,14 +105,14 @@ export function StoryOverlay({
       {/* Readability scrims — bottom band only, the scene stays visible */}
       <div
         aria-hidden
-        className="absolute inset-x-0 bottom-0 h-[55%] bg-gradient-to-t from-black/75 via-black/30 to-transparent"
+        className="absolute inset-x-0 bottom-0 h-[62%] bg-gradient-to-t from-black/75 via-black/30 to-transparent sm:h-[55%]"
       />
       <div
         aria-hidden
         className="absolute inset-0 bg-[radial-gradient(ellipse_60%_45%_at_50%_72%,rgba(0,0,0,0.42),transparent_70%)]"
       />
 
-      <div className="relative grid w-full max-w-3xl px-6 pb-[13svh] text-center sm:px-8">
+      <div className="relative grid w-full max-w-3xl px-6 pb-[15svh] text-center sm:px-8 sm:pb-[13svh]">
         {CHAPTERS.map((chapter, i) => (
           <div
             key={chapter.headline}
@@ -122,16 +122,16 @@ export function StoryOverlay({
             style={{ opacity: 0, transform: "translateY(24px)", visibility: "hidden" }}
             className="col-start-1 row-start-1 will-change-transform"
           >
-            <h2 className="cinematic-text font-display mt-4 text-4xl leading-[1.04] font-bold tracking-tighter text-balance sm:text-6xl">
+            <h2 className="cinematic-text font-display mt-4 text-3xl leading-[1.12] font-bold tracking-tighter text-balance sm:text-6xl sm:leading-[1.04]">
               {chapter.headline}
             </h2>
-            <p className="cinematic-text mx-auto mt-4 max-w-md text-sm leading-relaxed text-paper/75 sm:text-base">
+            <p className="cinematic-text mx-auto mt-3 max-w-md text-sm leading-relaxed text-paper/75 sm:mt-4 sm:text-base">
               {chapter.support}
             </p>
             {chapter.cta && (
               <Link
                 href="/signup"
-                className="pointer-events-auto cinematic-text mt-8 inline-flex items-center gap-2 rounded-full bg-paper px-8 py-3.5 text-sm font-semibold text-ink transition-all hover:-translate-y-0.5 hover:shadow-[0_12px_40px_rgba(251,250,247,0.25)] motion-reduce:transition-none motion-reduce:hover:translate-y-0"
+                className="pointer-events-auto cinematic-text mt-6 inline-flex items-center gap-2 rounded-full bg-paper px-8 py-3.5 text-sm font-semibold text-ink transition-all hover:-translate-y-0.5 hover:shadow-[0_12px_40px_rgba(251,250,247,0.25)] motion-reduce:transition-none motion-reduce:hover:translate-y-0 sm:mt-8"
               >
                 Start Writing
               </Link>

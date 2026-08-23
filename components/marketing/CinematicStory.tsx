@@ -132,18 +132,18 @@ export function CinematicStory() {
           />
           <div
             aria-hidden
-            className="absolute inset-x-0 bottom-0 h-[60%] bg-gradient-to-t from-black/80 via-black/30 to-transparent"
+            className="absolute inset-x-0 bottom-0 h-[62%] bg-gradient-to-t from-black/80 via-black/30 to-transparent sm:h-[60%]"
           />
           <div className="relative px-6 pb-16 text-center sm:pb-20">
-            <h2 className="font-display text-4xl leading-[1.04] font-bold tracking-tighter text-balance sm:text-6xl">
+            <h2 className="font-display text-3xl leading-[1.12] font-bold tracking-tighter text-balance sm:text-6xl sm:leading-[1.04]">
               Every story starts somewhere.
             </h2>
-            <p className="mx-auto mt-4 max-w-md text-sm leading-relaxed text-paper/75 sm:text-base">
+            <p className="mx-auto mt-3 max-w-md text-sm leading-relaxed text-paper/75 sm:mt-4 sm:text-base">
               An idea is only the beginning.
             </p>
             <Link
               href="/signup"
-              className="mt-8 inline-flex items-center gap-2 rounded-full bg-paper px-8 py-3.5 text-sm font-semibold text-ink"
+              className="mt-6 inline-flex items-center gap-2 rounded-full bg-paper px-8 py-3.5 text-sm font-semibold text-ink sm:mt-8"
             >
               Start Writing
             </Link>
