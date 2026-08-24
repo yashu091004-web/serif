@@ -148,12 +148,16 @@ function setupCinematicCanvas(
 
   let cssW = 1;
   let cssH = 1;
+  /* Device-pixel ratio of the current backing buffer; drawing must happen in
+     CSS pixels under a matching transform or frames land in only part of the
+     buffer (duplicated-looking band on the right at dpr != 1). */
+  let dpr = 1;
   let lastPaintedKey = "";
   let requestedFrame = 1;
 
   function applySize() {
     const rect = canvas.getBoundingClientRect();
-    const dpr = Math.min(
+    dpr = Math.min(
       window.devicePixelRatio || 1,
       isSmallScreen ? MOBILE_DPR_CAP : 2
     );
@@ -179,6 +183,12 @@ function setupCinematicCanvas(
     const dh = intrinsicH * scale;
     const dx = (cssW - dw) / 2;
     const dy = (cssH - dh) / 2;
+
+    /* Known-state transform every paint (setTransform is absolute, so it
+       cannot accumulate across resizes) + full clear so no stale pixels
+       survive outside the cover rect. */
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.clearRect(0, 0, cssW, cssH);
 
     ctx.drawImage(imgA, dx, dy, dw, dh);
 
