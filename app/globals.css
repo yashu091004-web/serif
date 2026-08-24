@@ -165,16 +165,6 @@
   color: var(--ink);
 }
 
-/* Serif marketing: fixed film-grain dot texture overlay */
-.grain {
-  background-image: radial-gradient(
-    circle at 1px 1px,
-    rgba(255, 255, 255, 0.9) 1px,
-    transparent 0
-  );
-  background-size: 3px 3px;
-}
-
 /* Serif cinematic story: keep chapter typography readable over any frame */
 .cinematic-text {
   text-shadow:
@@ -258,4 +248,13 @@
   [data-sonner-toaster] {
     margin-bottom: max(0.5rem, env(safe-area-inset-bottom)) !important;
   }
+}
+
+/* Landing: hide the browser scrollbar (scroll itself stays fully functional —
+   the cinematic hero is driven by native scroll position) */
+html:has(.landing) {
+  scrollbar-width: none;
+}
+html:has(.landing)::-webkit-scrollbar {
+  display: none;
 }

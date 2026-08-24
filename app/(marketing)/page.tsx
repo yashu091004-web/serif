@@ -132,12 +132,7 @@ export default async function LandingPage() {
     fetched.length > 0 ? fetched.slice(0, MAX_ARCHIVE_POSTS) : FALLBACK_POSTS;
 
   return (
-    <div className="flex flex-col">
-      <div
-        aria-hidden
-        className="grain pointer-events-none fixed inset-0 z-30 opacity-[0.035]"
-      />
-
+    <div className="landing flex flex-col">
       <CinematicStory />
 
       <EditorialArchive posts={archivePosts} />
