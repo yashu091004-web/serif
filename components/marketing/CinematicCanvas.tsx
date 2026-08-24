@@ -2,14 +2,14 @@
 
 import { useEffect, useRef } from "react";
 
-export const FRAME_COUNT = 240;
+export const FRAME_COUNT = 300;
 
 export function framePath(frame: number): string {
-  return `/scene_frames_24fps/frame_${String(frame).padStart(6, "0")}.jpg`;
+  return `/scene_frames_30fps/frame_${String(frame).padStart(6, "0")}.jpg`;
 }
 
 export interface CinematicCanvasApi {
-  /** Draw the frame at a fractional position in the 1..240 sequence. */
+  /** Draw the frame at a fractional position in the 1..300 sequence. */
   draw(frame: number): void;
   /** Re-measure the canvas and repaint the current frame. */
   resize(): void;
@@ -32,7 +32,7 @@ const BLUR_RELEASE = 20;
 const BLUR_MAX_PX = 2.5;
 
 /**
- * Full-bleed canvas that renders the 240-frame sequence.
+ * Full-bleed canvas that renders the 300-frame sequence.
  *
  * The parent (CinematicStory) owns scroll progress + interpolation and calls
  * `draw(frame)` every rAF with a fractional frame number. This component owns
@@ -76,7 +76,7 @@ function setupCinematicCanvas(
   const concurrencyLimit = isSmallScreen ? 4 : 6;
 
   const frameStride = isSmallScreen ? MOBILE_FRAME_STRIDE : 1;
-  /* Highest frame index that exists on the stride grid (240 on desktop, 239 on mobile). */
+  /* Highest frame index that exists on the stride grid (300 on desktop, 299 on mobile). */
   const topLoaded = FRAME_COUNT - ((FRAME_COUNT - 1) % frameStride);
 
   function snapToStride(frame: number) {
