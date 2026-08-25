@@ -9,8 +9,8 @@
   --color-foreground: var(--foreground);
   --font-sans: var(--font-inter);
   --font-mono: var(--font-ibm-plex-mono);
-  --font-display: var(--font-inter-tight);
-  --font-heading: var(--font-inter-tight);
+  --font-display: var(--font-dm-serif-display);
+  --font-heading: var(--font-dm-serif-display);
   /* Serif marketing palette — intentionally identical in light & dark themes */
   --color-ink: var(--ink);
   --color-ink-soft: var(--ink-soft);
