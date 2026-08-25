@@ -74,7 +74,7 @@ export function EditorialArchive({ posts }: { posts: ArchivePost[] }) {
     <section
       id="stories"
       aria-label="Stories worth reading"
-      className="relative bg-ink px-6 pt-10 pb-28 text-paper sm:pb-32"
+      className="relative bg-ink px-6 pt-10 pb-20 text-paper sm:pb-24"
     >
       <div className="mx-auto max-w-6xl">
         <Reveal className="flex flex-wrap items-end justify-between gap-6 border-b border-white/10 pb-8">

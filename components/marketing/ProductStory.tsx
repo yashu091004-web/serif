@@ -36,7 +36,7 @@ export function ProductStory() {
   return (
     <section
       aria-label="How Serif works"
-      className="bg-ink px-6 py-28 text-paper sm:py-32"
+      className="bg-ink px-6 py-20 text-paper sm:py-24"
     >
       <div className="mx-auto max-w-3xl">
         <Reveal className="text-center">

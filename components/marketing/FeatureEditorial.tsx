@@ -28,7 +28,7 @@ export function FeatureEditorial() {
     <section
       id="features"
       aria-label="Features"
-      className="scroll-mt-24 bg-paper px-6 pt-28 pb-28 text-ink sm:pt-32 sm:pb-32"
+      className="scroll-mt-24 bg-paper px-6 pt-20 pb-20 text-ink sm:pt-24 sm:pb-24"
     >
       <div className="mx-auto max-w-5xl">
         <Reveal className="max-w-xl">

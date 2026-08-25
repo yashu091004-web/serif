@@ -34,7 +34,7 @@ export function PricingSection({
     <section
       id="pricing"
       aria-label="Pricing"
-      className="scroll-mt-24 bg-paper px-6 pb-28 text-ink sm:pb-32"
+      className="scroll-mt-24 bg-paper px-6 pt-16 pb-16 text-ink sm:pt-20 sm:pb-20"
     >
       <div className="mx-auto max-w-3xl">
         <Reveal className="text-center">
@@ -46,7 +46,7 @@ export function PricingSection({
           </p>
         </Reveal>
 
-        <div className="mt-14 grid gap-5 sm:grid-cols-2">
+        <div className="mt-10 grid gap-5 sm:grid-cols-2">
           <Reveal>
             <div className="flex h-full flex-col rounded-2xl bg-paper-card p-7 shadow-[0_18px_50px_rgba(10,10,10,0.08)]">
               <h3 className="font-display text-lg font-bold">Free</h3>
@@ -143,7 +143,7 @@ export function PricingSection({
           </Reveal>
         </div>
 
-        <p className="mt-8 text-center text-xs text-ink-soft">
+        <p className="mt-6 text-center text-xs text-ink-soft">
           Subscriptions renew monthly. Cancel anytime — your Pro features stay
           active until the end of the billing period.
         </p>
