@@ -131,7 +131,7 @@ export function StoryOverlay({
             {chapter.cta && (
               <Link
                 href="/signup"
-                className="pointer-events-auto cinematic-text mt-6 inline-flex items-center gap-2 rounded-full bg-paper px-8 py-3.5 text-sm font-semibold text-ink transition-all hover:-translate-y-0.5 hover:shadow-[0_12px_40px_rgba(251,250,247,0.25)] motion-reduce:transition-none motion-reduce:hover:translate-y-0 sm:mt-8"
+                className="pointer-events-auto cinematic-text mt-6 inline-flex items-center gap-2 rounded-full bg-primary px-8 py-3.5 text-sm font-semibold text-primary-foreground transition-all hover:-translate-y-0.5 hover:shadow-[0_12px_40px_rgba(251,250,247,0.25)] motion-reduce:transition-none motion-reduce:hover:translate-y-0 sm:mt-8"
               >
                 Start Writing
               </Link>

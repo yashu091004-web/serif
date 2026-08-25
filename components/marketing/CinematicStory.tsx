@@ -120,7 +120,7 @@ export function CinematicStory() {
 
   if (prefersReducedMotion) {
     return (
-      <section aria-label="The Serif story" className="bg-ink text-paper">
+      <section aria-label="The Serif story" className="mt-2 bg-ink text-paper">
         <h1 className="sr-only">Serif — Where writers get read.</h1>
 
         <div className="relative flex h-svh items-end justify-center overflow-hidden">
@@ -143,7 +143,7 @@ export function CinematicStory() {
             </p>
             <Link
               href="/signup"
-              className="mt-6 inline-flex items-center gap-2 rounded-full bg-paper px-8 py-3.5 text-sm font-semibold text-ink sm:mt-8"
+              className="mt-6 inline-flex items-center gap-2 rounded-full bg-primary px-8 py-3.5 text-sm font-semibold text-primary-foreground sm:mt-8"
             >
               Start Writing
             </Link>
@@ -170,7 +170,7 @@ export function CinematicStory() {
     <section
       ref={sectionRef}
       aria-label="The Serif story"
-      className="relative h-[500vh] bg-ink"
+      className="relative mt-2 h-[500vh] bg-ink"
     >
       <h1 className="sr-only">Serif — Where writers get read.</h1>
 

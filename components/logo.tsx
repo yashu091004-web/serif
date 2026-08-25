@@ -31,7 +31,7 @@ export function Logo({
       {!compact && (
         <span
           className={cn(
-            "font-display text-lg font-bold tracking-tight",
+            "font-display text-xl font-bold tracking-tight",
             textClassName
           )}
         >

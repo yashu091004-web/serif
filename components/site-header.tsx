@@ -27,10 +27,10 @@ function isActive(pathname: string, href: string) {
 }
 
 const ghostPill =
-  "rounded-full border border-border bg-transparent px-4 py-2 text-sm font-medium text-foreground transition-colors hover:border-muted-foreground/60";
+  "rounded-lg border border-border/60 bg-transparent px-3.5 py-1.5 text-sm font-medium text-foreground transition-colors hover:border-muted-foreground/60";
 
 const solidPill =
-  "rounded-full bg-primary text-primary-foreground px-4 py-2 text-sm font-semibold shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-lg motion-reduce:hover:translate-y-0";
+  "rounded-lg bg-primary text-primary-foreground px-4 py-1.5 text-sm font-semibold shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-lg motion-reduce:hover:translate-y-0";
 
 export function SiteHeader({ isLoggedIn = false }: { isLoggedIn?: boolean }) {
   const pathname = usePathname();
@@ -38,7 +38,7 @@ export function SiteHeader({ isLoggedIn = false }: { isLoggedIn?: boolean }) {
   return (
     <header
       data-site-header
-      className="sticky top-4 z-50 mx-auto mt-4 flex h-14 w-[min(920px,calc(100%-2rem))] items-center gap-8 rounded-full border border-border/70 bg-background/70 pl-5 pr-3 backdrop-blur-xl"
+      className="sticky top-3 z-50 mx-auto mt-3 flex h-11 w-[min(840px,calc(100%-2.5rem))] items-center gap-6 rounded-xl border border-border/50 bg-background/80 pl-4 pr-2.5 shadow-sm backdrop-blur-xl"
     >
       <div className="mr-auto flex shrink-0 items-center">
         <Logo />
@@ -46,7 +46,7 @@ export function SiteHeader({ isLoggedIn = false }: { isLoggedIn?: boolean }) {
 
       {!isLoggedIn && (
         <nav
-          className="hidden items-center gap-7 md:flex"
+          className="hidden items-center gap-5 md:flex"
           aria-label="Main navigation"
         >
           {navLinks.map((link) => (
@@ -68,7 +68,7 @@ export function SiteHeader({ isLoggedIn = false }: { isLoggedIn?: boolean }) {
       )}
 
       {isLoggedIn ? (
-        <div className="hidden items-center gap-2 md:flex">
+        <div className="hidden items-center gap-1.5 md:flex">
           <Link
             href="/dashboard"
             className={buttonVariants({ size: "sm", className: "rounded-full" })}
@@ -77,7 +77,7 @@ export function SiteHeader({ isLoggedIn = false }: { isLoggedIn?: boolean }) {
           </Link>
         </div>
       ) : (
-        <div className="hidden items-center gap-2 md:flex">
+        <div className="hidden items-center gap-1.5 md:flex">
           <Link href="/login" className={ghostPill}>
             Log in
           </Link>
